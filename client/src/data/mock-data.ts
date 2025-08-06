@@ -1,0 +1,177 @@
+export const mockUser = {
+  id: "sample-user-1",
+  username: "annguyen",
+  fullName: "An Nguyễn",
+  role: "student" as const,
+  grade: "9A3",
+  subject: "math",
+  points: 1250,
+  streak: 7,
+};
+
+export const mockLearningTopics = [
+  {
+    id: "topic-1",
+    name: "Phương trình bậc hai",
+    description: "Đã hoàn thành • 12 bài học",
+    progress: 100,
+    status: "completed" as const,
+    icon: "check",
+  },
+  {
+    id: "topic-2", 
+    name: "Hàm số bậc nhất",
+    description: "Đang học • 8/15 bài học",
+    progress: 53,
+    status: "current" as const,
+    icon: "play",
+  },
+  {
+    id: "topic-3",
+    name: "Hình học không gian", 
+    description: "Sẽ mở khóa sau • 20 bài học",
+    progress: 0,
+    status: "locked" as const,
+    icon: "lock",
+  },
+];
+
+export const mockKnowledgeMap = [
+  { id: "PT", name: "Phương trình", strength: "strong" },
+  { id: "HS", name: "Hàm số", strength: "medium" },
+  { id: "HH", name: "Hình học", strength: "weak" },
+  { id: "BĐT", name: "Bất đẳng thức", strength: "strong" },
+  { id: "LS", name: "Logarit", strength: "current" },
+  { id: "GT", name: "Giải tích", strength: "locked" },
+];
+
+export const mockAchievements = [
+  {
+    id: "streak-7",
+    name: "Chuỗi 7 ngày",
+    description: "Học liên tục 7 ngày",
+    icon: "fire",
+    color: "gold",
+  },
+  {
+    id: "perfect-score",
+    name: "Điểm số hoàn hảo", 
+    description: "Đạt 10/10 điểm",
+    icon: "star",
+    color: "green",
+  },
+];
+
+export const mockLeaderboard = [
+  {
+    id: "user-1",
+    name: "Thu Linh",
+    initials: "TL",
+    grade: "9A1",
+    points: 3420,
+    lessonsCompleted: 45,
+    rank: 1,
+  },
+  {
+    id: "user-2", 
+    name: "Minh Hoàng",
+    initials: "MH",
+    grade: "9B2",
+    points: 2150,
+    lessonsCompleted: 32,
+    rank: 2,
+  },
+  {
+    id: "user-3",
+    name: "Đức Khoa", 
+    initials: "ĐK",
+    grade: "9C1",
+    points: 1890,
+    lessonsCompleted: 28,
+    rank: 3,
+  },
+  {
+    id: "user-4",
+    name: "Văn Tuấn",
+    initials: "VT", 
+    grade: "9B1",
+    points: 1750,
+    lessonsCompleted: 22,
+    rank: 4,
+  },
+  {
+    id: "user-5",
+    name: "Hồng Lan",
+    initials: "HL",
+    grade: "9A2", 
+    points: 1650,
+    lessonsCompleted: 19,
+    rank: 5,
+  },
+  {
+    id: "user-6",
+    name: "Quang Đức",
+    initials: "QD",
+    grade: "9C1",
+    points: 1450, 
+    lessonsCompleted: 17,
+    rank: 6,
+  },
+  {
+    id: "sample-user-1",
+    name: "An Nguyễn",
+    initials: "AN",
+    grade: "9A3",
+    points: 1250,
+    lessonsCompleted: 15,
+    rank: 7,
+  },
+];
+
+export const mockGameShowQuestions = [
+  {
+    id: "game-q1",
+    level: 1,
+    prize: "1.000",
+    question: "Phép tính 5 + 3 có kết quả là:",
+    options: ["8", "7", "6", "9"],
+    correctAnswer: "8",
+    difficulty: 1,
+  },
+  {
+    id: "game-q2",
+    level: 2,
+    prize: "2.000", 
+    question: "Phép tính 12 ÷ 4 có kết quả là:",
+    options: ["2", "3", "4", "6"],
+    correctAnswer: "3",
+    difficulty: 1,
+  },
+  {
+    id: "game-q3",
+    level: 3,
+    prize: "5.000",
+    question: "Phương trình x + 7 = 15 có nghiệm là:",
+    options: ["x = 8", "x = 22", "x = 7", "x = 15"],
+    correctAnswer: "x = 8", 
+    difficulty: 2,
+  },
+  {
+    id: "game-q4",
+    level: 4,
+    prize: "10.000",
+    question: "Hàm số y = 3x + 2 khi x = 1 có giá trị y là:",
+    options: ["y = 5", "y = 3", "y = 2", "y = 6"],
+    correctAnswer: "y = 5",
+    difficulty: 2,
+  },
+  {
+    id: "game-q5",
+    level: 5,
+    prize: "50.000",
+    question: "Cho hàm số y = 2x - 1. Khi x = 3, giá trị của y là bao nhiêu?",
+    options: ["y = 5", "y = 7", "y = 6", "y = 4"],
+    correctAnswer: "y = 5",
+    difficulty: 3,
+  },
+];
