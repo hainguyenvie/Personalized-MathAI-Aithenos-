@@ -1,5 +1,7 @@
 import { type User, type InsertUser, type Assessment, type InsertAssessment, type LearningPath, type InsertLearningPath, type GameScore, type InsertGameScore, type Question, type InsertQuestion } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { enhancedQuestions } from "./enhanced-questions";
+import { demoUsers, demoAssessments, demoLearningPaths } from "./demo-data";
 
 export interface IStorage {
   // User methods
@@ -24,6 +26,9 @@ export interface IStorage {
   // Question methods
   getQuestionsBySubjectAndTopic(subject: string, topic?: string): Promise<Question[]>;
   getRandomQuestions(subject: string, count: number, difficulty?: number): Promise<Question[]>;
+
+  // Demo utilities
+  resetUserData(userId: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -45,7 +50,7 @@ export class MemStorage implements IStorage {
   }
 
   private initializeSampleData() {
-    // Add sample user
+    // Add demo users with rich data
     const sampleUser: User = {
       id: "sample-user-1",
       username: "annguyen",
@@ -57,11 +62,20 @@ export class MemStorage implements IStorage {
       points: 1250,
       streak: 7,
       createdAt: new Date(),
+      level: 3,
+      totalXP: 1250,
+      achievements: JSON.stringify(["first_correct", "streak_master"])
     };
     this.users.set(sampleUser.id, sampleUser);
 
-    // Add sample questions for math
+    // Add additional demo users for realistic leaderboard
+    demoUsers.forEach(user => {
+      this.users.set(user.id, user);
+    });
+
+    // Add enhanced questions for math
     const sampleQuestions: Question[] = [
+      ...enhancedQuestions,
       // Easy questions (difficulty 1-2)
       {
         id: "q1",
@@ -165,9 +179,59 @@ export class MemStorage implements IStorage {
         correctAnswer: "4cm",
         explanation: "Theo định lý Pythagoras: a² + b² = c² => 3² + b² = 5² => b² = 25 - 9 = 16 => b = 4cm"
       }
+      ,
+      // Geometry misconception-focused (area vs perimeter)
+      {
+        id: "q11",
+        subject: "math",
+        topic: "geometry",
+        difficulty: 2,
+        question: "Hình chữ nhật có các cạnh 5 và 3. Diện tích hình chữ nhật là bao nhiêu?",
+        options: JSON.stringify(["15", "16", "8", "30"]),
+        correctAnswer: "15",
+        explanation: "Diện tích = dài × rộng = 5 × 3 = 15. 16 là chu vi/nhầm lẫn, 8 là tính tổng hai cạnh, 30 là nhầm lẫn nhân đôi diện tích.",
+      }
     ];
 
     sampleQuestions.forEach(q => this.questions.set(q.id, q));
+
+    // Add demo assessments and learning paths
+    demoAssessments.forEach(assessment => {
+      this.assessments.set(assessment.id, assessment);
+    });
+
+    demoLearningPaths.forEach(path => {
+      this.learningPaths.set(path.id, path);
+    });
+
+    // Add some demo game scores for leaderboard
+    const gameScores = [
+      {
+        id: randomUUID(),
+        userId: "demo-user-2",
+        gameType: "quiz-master",
+        score: 950,
+        completedAt: new Date("2024-01-22T16:30:00Z")
+      },
+      {
+        id: randomUUID(), 
+        userId: "demo-user-1",
+        gameType: "speed-math",
+        score: 780,
+        completedAt: new Date("2024-01-21T14:15:00Z")
+      },
+      {
+        id: randomUUID(),
+        userId: "demo-user-3", 
+        gameType: "equation-solver",
+        score: 650,
+        completedAt: new Date("2024-01-20T10:45:00Z")
+      }
+    ];
+
+    gameScores.forEach(score => {
+      this.gameScores.set(score.id, score);
+    });
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -279,6 +343,21 @@ export class MemStorage implements IStorage {
     // Shuffle and take first 'count' questions
     const shuffled = filteredQuestions.sort(() => Math.random() - 0.5);
     return shuffled.slice(0, count);
+  }
+
+  async resetUserData(userId: string): Promise<void> {
+    // Remove assessments
+    for (const [id, a] of Array.from(this.assessments.entries())) {
+      if (a.userId === userId) this.assessments.delete(id);
+    }
+    // Remove learning paths
+    for (const [id, p] of Array.from(this.learningPaths.entries())) {
+      if (p.userId === userId) this.learningPaths.delete(id);
+    }
+    // Remove game scores
+    for (const [id, s] of Array.from(this.gameScores.entries())) {
+      if (s.userId === userId) this.gameScores.delete(id);
+    }
   }
 }
 
