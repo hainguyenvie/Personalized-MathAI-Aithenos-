@@ -291,7 +291,7 @@ export default function GamificationElements({
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className={`bg-gradient-to-r ${rarityColors[showAchievement.rarity]} text-white p-6 rounded-xl shadow-2xl transform animate-pulse`}>
             <div className="text-center">
-              <showAchievement.icon size={40} className="mx-auto mb-3" />
+              {React.createElement(showAchievement.icon, { size: 40, className: "mx-auto mb-3" })}
               <h3 className="text-xl font-bold mb-1">Thành tích mở khóa!</h3>
               <p className="text-lg font-semibold">{showAchievement.name}</p>
               <p className="text-sm opacity-90 mt-1">{showAchievement.description}</p>
@@ -334,7 +334,7 @@ export default function GamificationElements({
         </Button>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes float-up {
           0% {
             opacity: 1;
