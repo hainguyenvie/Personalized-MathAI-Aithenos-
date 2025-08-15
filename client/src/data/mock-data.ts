@@ -1,7 +1,7 @@
 export const mockUser = {
   id: "sample-user-1",
-  username: "annguyen",
-  fullName: "An Nguyễn",
+  username: "thanhnga",
+  fullName: "Thanh Nga",
   role: "student" as const,
   grade: "9A3",
   subject: "math",
@@ -119,8 +119,8 @@ export const mockLeaderboard = [
   },
   {
     id: "sample-user-1",
-    name: "An Nguyễn",
-    initials: "AN",
+    name: "Thanh Nga",
+    initials: "TN",
     grade: "9A3",
     points: 1250,
     lessonsCompleted: 15,

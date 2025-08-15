@@ -53,9 +53,9 @@ export class MemStorage implements IStorage {
     // Add demo users with rich data
     const sampleUser: User = {
       id: "sample-user-1",
-      username: "annguyen",
+      username: "thanhnga",
       password: "password123",
-      fullName: "An Nguyễn",
+      fullName: "Thanh Nga",
       role: "student",
       grade: "9A3",
       subject: "math",
