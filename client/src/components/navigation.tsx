@@ -23,10 +23,7 @@ export default function Navigation() {
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <div className="bg-gold text-navy p-2 rounded-lg font-bold text-xl">
-                <Crown size={24} />
-              </div>
-              <span className="font-bold text-xl">Aithenos</span>
+              <img src="/logo.svg" alt="Aithenos Logo" className="h-8 w-auto" />
             </div>
             <div className="hidden md:flex items-center space-x-6">
               {navItems.map((item) => (
