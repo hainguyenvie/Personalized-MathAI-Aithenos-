@@ -1,0 +1,10 @@
+[33mec5f707[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m lol
+[33m386c98b[m Security fix: Remove secrets from history and add .env to gitignore
+[33ma364e99[m list
+[33m94bd880[m lol
+[33mc8af243[m update
+[33m4f55bc4[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Improve setup instructions and add Windows-specific start script
+[33md0e99d4[m Restored to '1a78d22458cc88b1f3f0b0d770654c95a8474d49'
+[33m15143d6[m Restored to 'f8f137f7f338d8c5c6372a13f30a31c535777291'
+[33mf8f137f[m Implement an adaptive learning loop with AI support for personalized study
+[33m1a78d22[m Improve homepage appearance for a better user experience
