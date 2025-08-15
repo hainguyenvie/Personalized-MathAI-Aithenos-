@@ -1,6 +1,6 @@
 # Overview
 
-Tri Thức Vàng is a Vietnamese educational platform that provides personalized learning experiences through adaptive learning paths and gamified content. The platform combines traditional learning with modern technology to create an engaging educational environment where students can assess their knowledge, follow customized learning routes, and participate in game-show style quizzes to reinforce their understanding.
+Aithenos is a Vietnamese educational platform that provides personalized learning experiences through adaptive learning paths and gamified content. The platform combines traditional learning with modern technology to create an engaging educational environment where students can assess their knowledge, follow customized learning routes, and participate in game-show style quizzes to reinforce their understanding.
 
 The application is built as a full-stack web application with a React frontend and Express backend, featuring a comprehensive learning management system that adapts to individual student needs and learning patterns.
 

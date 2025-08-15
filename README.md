@@ -1,4 +1,4 @@
-# Tri Thức Vàng - Vietnamese Adaptive Learning Platform
+# Aithenos - Vietnamese Adaptive Learning Platform
 
 A gamified educational platform featuring personalized learning paths, AI tutoring, and game show-style quizzes.
 

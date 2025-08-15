@@ -26,7 +26,7 @@ export default function Navigation() {
               <div className="bg-gold text-navy p-2 rounded-lg font-bold text-xl">
                 <Crown size={24} />
               </div>
-              <span className="font-bold text-xl">Tri Thức Vàng</span>
+              <span className="font-bold text-xl">Aithenos</span>
             </div>
             <div className="hidden md:flex items-center space-x-6">
               {navItems.map((item) => (

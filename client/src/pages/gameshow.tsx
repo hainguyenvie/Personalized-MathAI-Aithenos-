@@ -58,7 +58,7 @@ export default function GameShow() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
               message: `Hãy đưa ra gợi ý (không phải đáp án trực tiếp) cho câu hỏi: ${currentQuestion.question}`,
-              context: "Game show Tri Thức Vàng - người chơi cần gợi ý, không phải đáp án"
+              context: "Game show Aithenos - người chơi cần gợi ý, không phải đáp án"
             }),
           });
           const data = await response.json();
@@ -109,7 +109,7 @@ export default function GameShow() {
         {/* Game Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-bold text-gold mb-2 drop-shadow-lg">
-            TRI THỨC VÀNG
+            AITHENOS
           </h1>
           <p className="text-white/90 text-lg">Game Show Kiến Thức Toán Học</p>
         </div>
@@ -299,7 +299,7 @@ export default function GameShow() {
               <div className="text-6xl mb-4">🏆</div>
               <h3 className="text-3xl font-bold text-gold mb-2">Xuất sắc!</h3>
               <p className="text-lg text-gray-600 mb-6">
-                Bạn đã hoàn thành tất cả 15 câu hỏi và trở thành nhà vô địch Tri Thức Vàng!
+                Bạn đã hoàn thành tất cả 15 câu hỏi và trở thành nhà vô địch Aithenos!
               </p>
               <div className="bg-gold/20 p-4 rounded-lg mb-6">
                 <p className="text-2xl font-bold text-gold">🥇 5.000.000 điểm</p>
