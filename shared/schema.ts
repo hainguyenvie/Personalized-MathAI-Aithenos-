@@ -13,6 +13,9 @@ export const users = pgTable("users", {
   subject: text("subject"), // "math", "physics", etc.
   points: integer("points").default(0),
   streak: integer("streak").default(0),
+  level: integer("level").default(1),
+  totalXP: integer("total_xp").default(0),
+  achievements: text("achievements"), // JSON string
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -23,24 +26,30 @@ export const assessments = pgTable("assessments", {
   score: integer("score").notNull(),
   totalQuestions: integer("total_questions").notNull(),
   knowledgeMap: text("knowledge_map").notNull(), // JSON string
+  responses: text("responses"), // JSON array of per-item logs
   completedAt: timestamp("completed_at").defaultNow(),
 });
 
 export const learningPaths = pgTable("learning_paths", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id).notNull(),
+  title: text("title"),
   subject: text("subject").notNull(),
   duration: integer("duration").notNull(), // in months
   topics: text("topics").notNull(), // JSON array
+  priority: text("priority"), // "foundational-gaps" | "enrichment"
   progress: integer("progress").default(0),
+  estimatedDuration: text("estimated_duration"), // "3 tuần", "2 tháng"
+  status: text("status").default("active"), // "active" | "completed" | "paused"
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const gameScores = pgTable("game_scores", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id).notNull(),
+  gameType: text("game_type"), // "quiz-master", "speed-math", etc.
   score: integer("score").notNull(),
-  questionsAnswered: integer("questions_answered").notNull(),
+  questionsAnswered: integer("questions_answered"),
   completedAt: timestamp("completed_at").defaultNow(),
 });
 

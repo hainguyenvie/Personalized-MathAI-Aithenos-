@@ -1,6 +1,10 @@
 import { mockKnowledgeMap } from "@/data/mock-data";
 
-export default function KnowledgeMap() {
+interface KnowledgeMapProps {
+  knowledgeMap?: any;
+}
+
+export default function KnowledgeMap({ knowledgeMap }: KnowledgeMapProps = {}) {
   const getColorForStrength = (strength: string) => {
     switch (strength) {
       case "strong": return "bg-green-400";
@@ -19,19 +23,30 @@ export default function KnowledgeMap() {
     }
   };
 
+  const dataSource = knowledgeMap ? Object.entries(knowledgeMap) : mockKnowledgeMap.map(t => [t.id, t]);
+  
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
       <h3 className="font-bold text-navy mb-4">Bản đồ tri thức</h3>
       <div className="grid grid-cols-3 gap-2 mb-4">
-        {mockKnowledgeMap.map((topic) => (
-          <div
-            key={topic.id}
-            className={`aspect-square ${getColorForStrength(topic.strength)} rounded-lg flex items-center justify-center ${getTextColorForStrength(topic.strength)} text-sm font-medium transition-all duration-300 hover:scale-105 cursor-pointer`}
-            title={topic.name}
-          >
-            {topic.id}
-          </div>
-        ))}
+        {dataSource.map(([key, data]: any) => {
+          const topicData = knowledgeMap ? data : data;
+          const strength = knowledgeMap 
+            ? (topicData.score >= 80 ? "strong" : topicData.score >= 60 ? "medium" : "weak")
+            : topicData.strength;
+          const displayName = knowledgeMap ? key.slice(0, 3).toUpperCase() : topicData.id;
+          const title = knowledgeMap ? `${key}: ${topicData.level} (${topicData.score}%)` : topicData.name;
+          
+          return (
+            <div
+              key={key}
+              className={`aspect-square ${getColorForStrength(strength)} rounded-lg flex items-center justify-center ${getTextColorForStrength(strength)} text-sm font-medium transition-all duration-300 hover:scale-105 cursor-pointer`}
+              title={title}
+            >
+              {displayName}
+            </div>
+          );
+        })}
       </div>
       <div className="text-xs text-gray-500 mb-3">
         <div className="flex items-center space-x-4">

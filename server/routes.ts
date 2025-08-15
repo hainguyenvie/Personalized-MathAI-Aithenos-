@@ -1,8 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertAssessmentSchema, insertGameScoreSchema } from "@shared/schema";
-import { getChatResponse, generateMiniQuiz } from "./openai";
+import { insertUserSchema, insertAssessmentSchema, insertGameScoreSchema, insertLearningPathSchema } from "@shared/schema";
+import { getChatResponse, generateMiniQuiz, buildOntologyContext } from "./openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -81,6 +81,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Learning path routes
+  app.post("/api/learning-paths", async (req, res) => {
+    try {
+      const learningPathData = insertLearningPathSchema.parse(req.body);
+      const path = await storage.createLearningPath(learningPathData);
+      res.json(path);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid learning path data" });
+    }
+  });
+
   app.get("/api/learning-paths/user/:userId", async (req, res) => {
     try {
       const paths = await storage.getLearningPathsByUser(req.params.userId);
@@ -136,12 +146,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Chat routes
   app.post("/api/chat", async (req, res) => {
     try {
-      const { message, context } = req.body;
+      const { message, context, errorPatterns } = req.body;
       if (!message) {
         return res.status(400).json({ message: "Message is required" });
       }
-      
-      const response = await getChatResponse(message, context);
+      const augmented = [context, buildOntologyContext(context)].filter(Boolean).join("\n\n");
+      const response = await getChatResponse(message, augmented, errorPatterns);
       res.json({ response });
     } catch (error) {
       console.error("Chat error:", error);
@@ -162,6 +172,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Mini quiz generation error:", error);
       res.status(500).json({ message: "Failed to generate mini quiz" });
+    }
+  });
+
+  // Demo: reset user progress/state
+  app.post("/api/demo/reset", async (req, res) => {
+    try {
+      const { userId } = req.body || {};
+      if (!userId) return res.status(400).json({ message: "userId is required" });
+      await storage.resetUserData(userId);
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to reset demo data" });
     }
   });
 
