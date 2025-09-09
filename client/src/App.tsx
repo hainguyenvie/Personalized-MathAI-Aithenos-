@@ -10,6 +10,7 @@ import DemoBanner from "@/components/demo-banner";
 import Home from "@/pages/home";
 import Login from "@/pages/login";
 import Assessment from "@/pages/assessment";
+import AdaptiveTest from "@/pages/adaptive-test";
 import Onboarding from "@/pages/onboarding";
 import Practice from "@/pages/practice";
 import UnitQuiz from "@/pages/unit-quiz";
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/assessment" component={Assessment} />
+      <Route path="/adaptive-test" component={AdaptiveTest} />
       <Route path="/practice" component={Practice} />
       <Route path="/unit-quiz" component={UnitQuiz} />
       <Route path="/mastery" component={Mastery} />
