@@ -37,7 +37,7 @@ export default function Login() {
       <Card className="w-full max-w-md shadow-xl border-0 bg-white/90 backdrop-blur-sm">
         <CardHeader className="text-center pb-2">
           <div className="flex justify-center mb-4">
-            <img src="/logo.svg" alt="Aithenos Logo" className="h-16 w-auto" />
+            <img src="/logo.png" alt="Aithenos Logo" className="h-16 w-auto" />
           </div>
           <CardTitle className="text-2xl font-bold text-blue-900">
             Chào mừng đến với Aithenos

@@ -26,7 +26,7 @@ export default function Navigation() {
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <img src="/logo.svg" alt="Aithenos Logo" className="h-8 w-auto" />
+              <img src="/logo.png" alt="Aithenos Logo" className="h-8 w-auto" />
             </div>
             <div className="hidden md:flex items-center space-x-6">
               {navItems.map((item) => (
