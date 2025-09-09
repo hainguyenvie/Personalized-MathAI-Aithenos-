@@ -5,18 +5,24 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import KnowledgeMap from "@/components/knowledge-map";
 import GamificationElements from "@/components/gamification-elements";
+import ProtectedRoute from "@/components/protected-route";
+import { useAuth } from "@/contexts/auth-context";
 import { mockUser, mockLearningTopics, mockAchievements } from "@/data/mock-data";
 import { useLocation } from "wouter";
 import { AnimatedProgressBar, StaggeredList, PulseAttention, TypewriterText } from "@/components/enhanced-animations";
 import { motion } from "framer-motion";
 
-export default function Home() {
+function HomeContent() {
   const [, navigate] = useLocation();
+  const { user } = useAuth();
   const [hasOnboarding, setHasOnboarding] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [lastAssessment, setLastAssessment] = useState<any | null>(null);
   const [knowledgeTiles, setKnowledgeTiles] = useState<any[]>([]);
   const [onboardingConfig, setOnboardingConfig] = useState<any>(null);
+
+  // Get user's display name from Google OAuth metadata
+  const userDisplayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Bạn';
 
   useEffect(() => {
     try {
@@ -92,7 +98,7 @@ export default function Home() {
             <div>
               <h1 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
                 Chào mừng trở lại, <br/>
-                <span className="text-yellow-400">{mockUser.fullName}!</span>
+                <span className="text-yellow-400">{userDisplayName}!</span>
               </h1>
               <p className="text-xl mb-8 text-blue-100 leading-relaxed">
                 Nền tảng học thích ứng sẵn sàng đồng hành cùng bạn. Bắt đầu từ mục tiêu, chẩn đoán, rồi luyện tập thông minh.
@@ -413,5 +419,13 @@ export default function Home() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <ProtectedRoute>
+      <HomeContent />
+    </ProtectedRoute>
   );
 }
