@@ -3,10 +3,12 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/contexts/auth-context";
 import Navigation from "@/components/navigation";
 import ChatWidget from "@/components/chat-widget";
 import DemoBanner from "@/components/demo-banner";
 import Home from "@/pages/home";
+import Login from "@/pages/login";
 import Assessment from "@/pages/assessment";
 import Onboarding from "@/pages/onboarding";
 import Practice from "@/pages/practice";
@@ -23,6 +25,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/login" component={Login} />
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/assessment" component={Assessment} />
       <Route path="/practice" component={Practice} />
@@ -43,13 +46,15 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <div className="min-h-screen bg-gray-50">
-          <DemoBanner />
-          <Navigation />
-          <Router />
-          <ChatWidget />
-          <Toaster />
-        </div>
+        <AuthProvider>
+          <div className="min-h-screen bg-gray-50">
+            <DemoBanner />
+            <Navigation />
+            <Router />
+            <ChatWidget />
+            <Toaster />
+          </div>
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

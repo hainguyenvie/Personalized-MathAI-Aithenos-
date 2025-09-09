@@ -7,6 +7,8 @@ export const mockUser = {
   subject: "math",
   points: 1250,
   streak: 7,
+  level: 3,
+  totalXP: 320,
 };
 
 export const mockLearningTopics = [
@@ -51,14 +53,22 @@ export const mockAchievements = [
     name: "Chuỗi 7 ngày",
     description: "Học liên tục 7 ngày",
     icon: "fire",
-    color: "gold",
+    unlocked: true,
+    progress: 7,
+    maxProgress: 7,
+    rarity: "rare" as const,
+    category: "persistence" as const,
   },
   {
     id: "perfect-score",
     name: "Điểm số hoàn hảo", 
     description: "Đạt 10/10 điểm",
     icon: "star",
-    color: "green",
+    unlocked: true,
+    progress: 1,
+    maxProgress: 1,
+    rarity: "epic" as const,
+    category: "mastery" as const,
   },
 ];
 
