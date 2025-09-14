@@ -820,19 +820,9 @@ export class AdaptiveLearningManager {
       case 'REVIEW_SUPP_FAIL_N':
       case 'REVIEW_SUPP_FAIL_H':
       case 'REVIEW_SUPP_FAIL_V':
-        // Review supplementary fail state - show detailed review then move to next difficulty
-        const reviewSuppFailDifficulty = session.current_difficulty;
-        if (reviewSuppFailDifficulty === 'N') {
-          session.current_state = 'BUNDLE_H';
-          session.current_difficulty = 'H';
-          nextBundle = await this.generateInitialBundle('H', session.asked_question_ids);
-        } else if (reviewSuppFailDifficulty === 'H') {
-          session.current_state = 'BUNDLE_V';
-          session.current_difficulty = 'V';
-          nextBundle = await this.generateInitialBundle('V', session.asked_question_ids);
-        } else {
-          session.current_state = 'END';
-        }
+        // Review supplementary fail state - wait for frontend to call continueAfterFailReview
+        // Don't change difficulty yet, just indicate that review is needed
+        needsReview = true;
         break;
     }
 
@@ -1113,12 +1103,23 @@ Trả về JSON:
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error('Session not found');
 
+    // Check if this is a supplementary review
+    const isSupplementaryReview = session.current_state?.startsWith('REVIEW_SUPP_');
+    
     // Analyze performance by lesson for current difficulty
     const lessonStats: { [lesson: number]: { total: number; correct: number; time_spent: number } } = {};
-    const difficultyAnswers = session.answers_by_difficulty[difficulty] || [];
+    let difficultyAnswers = session.answers_by_difficulty[difficulty] || [];
+
+    // If this is a supplementary review, only include supplementary question answers
+    if (isSupplementaryReview) {
+      difficultyAnswers = difficultyAnswers.filter(answer => 
+        answer.question_id.startsWith('generated_')
+      );
+    }
 
     console.log('Review session debug:', {
       difficulty,
+      isSupplementaryReview,
       totalAnswers: session.answers.length,
       difficultyAnswers: difficultyAnswers.length,
       answersByDifficulty: session.answers_by_difficulty,
@@ -1427,6 +1428,47 @@ Trả về JSON:
 
     this.sessions.set(sessionId, session);
     return { session, nextBundle: supplementaryBundle };
+  }
+
+  // Continue after supplementary review (both success and fail)
+  async continueAfterSupplementaryReview(sessionId: string, difficulty: 'N' | 'H' | 'V'): Promise<{ session: Session; nextBundle?: Question[] }> {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+
+    console.log('Continue after supplementary review debug:', {
+      difficulty,
+      currentState: session.current_state,
+      currentDifficulty: session.current_difficulty
+    });
+
+    let nextBundle: Question[] | undefined;
+
+    // Move to the specified difficulty after supplementary review
+    if (difficulty === 'H') {
+      session.current_state = 'BUNDLE_H';
+      session.current_difficulty = 'H';
+      nextBundle = await this.generateInitialBundle('H', session.asked_question_ids);
+      // Save the new bundle
+      session.used_bundles['H'] = [...nextBundle];
+      session.current_bundle = nextBundle;
+      session.current_question_index = 0;
+    } else if (difficulty === 'V') {
+      session.current_state = 'BUNDLE_V';
+      session.current_difficulty = 'V';
+      nextBundle = await this.generateInitialBundle('V', session.asked_question_ids);
+      // Save the new bundle
+      session.used_bundles['V'] = [...nextBundle];
+      session.current_bundle = nextBundle;
+      session.current_question_index = 0;
+    } else if (difficulty === 'END') {
+      session.current_state = 'END';
+    } else {
+      // Default case - should not happen
+      session.current_state = 'END';
+    }
+
+    this.sessions.set(sessionId, session);
+    return { session, nextBundle };
   }
 
   // Generate mastery report

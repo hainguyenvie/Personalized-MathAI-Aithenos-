@@ -539,6 +539,52 @@ router.post('/sessions/:sessionId/review/:reviewId/continue-fail', async (req, r
   }
 });
 
+// Continue after supplementary review (both success and fail)
+router.post('/sessions/:sessionId/review/:reviewId/continue-supplementary', async (req, res) => {
+  try {
+    const { sessionId, reviewId } = req.params;
+    const { difficulty } = req.body;
+    
+    if (!difficulty || !['N', 'H', 'V'].includes(difficulty)) {
+      return res.status(400).json({ error: 'Valid difficulty (N, H, V) is required' });
+    }
+
+    const session = adaptiveLearningManager.getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const reviewSession = session.review_sessions.find(rs => rs.id === reviewId);
+    if (!reviewSession) {
+      return res.status(404).json({ error: 'Review session not found' });
+    }
+
+    // Use the new continueAfterSupplementaryReview method
+    const result = await adaptiveLearningManager.continueAfterSupplementaryReview(sessionId, difficulty);
+
+    res.json({
+      success: true,
+      session: {
+        id: result.session.id,
+        current_state: result.session.current_state,
+        current_difficulty: result.session.current_difficulty
+      },
+      next_bundle: result.nextBundle ? result.nextBundle.map(q => ({
+        id: q.id,
+        content: q.content,
+        type: q.type,
+        choices: q.choices,
+        difficulty: q.difficulty,
+        difficulty_name: q.difficulty_name,
+        lesson_id: q.lesson_id
+      })) : null
+    });
+  } catch (error) {
+    console.error('Error continuing after supplementary review:', error);
+    res.status(500).json({ error: 'Failed to continue after supplementary review' });
+  }
+});
+
 router.get('/sessions/:sessionId/report', async (req, res) => {
   try {
     const { sessionId } = req.params;

@@ -206,11 +206,8 @@ export default function AdaptiveLearning() {
           // Check if this is a detailed supplementary review
           if (data.session.current_state?.startsWith('REVIEW_SUPP_FAIL_')) {
             await showDetailedSupplementaryReview(sessionId, data.session.current_difficulty);
-          } else if (data.session.current_state?.startsWith('REVIEW_SUPP_')) {
-            // This is a regular supplementary review (score >= 80%)
-            await showReviewSession(sessionId, data.session.current_difficulty);
           } else {
-            // Show regular review session for main difficulty
+            // Show regular review session (for both main difficulty and supplementary success)
             await showReviewSession(sessionId, data.session.current_difficulty);
           }
         } else if (data.next_bundle) {
@@ -343,13 +340,23 @@ export default function AdaptiveLearning() {
   // Generate report
   const generateReport = async (sessionId: string) => {
     try {
+      console.log('Generating report for session:', sessionId);
       const response = await fetch(`/api/adaptive/sessions/${sessionId}/report`);
+      console.log('Report API response status:', response.status);
+      
       const data = await response.json();
+      console.log('Report API response data:', data);
+      
       if (data.success) {
+        console.log('Report generated successfully, setting report data');
         setReport(data.report);
         setShowReport(true);
+      } else {
+        console.error('Report generation failed:', data.error);
+        setError(data.error || 'Failed to generate report');
       }
     } catch (err) {
+      console.error('Error generating report:', err);
       setError('Failed to generate report');
     }
   };
@@ -429,12 +436,12 @@ export default function AdaptiveLearning() {
     try {
       setLoading(true);
       
-      // Check if this is a detailed supplementary review
-      const isDetailedSupplementaryReview = session?.current_state?.startsWith('REVIEW_SUPP_FAIL_');
+      // Check if this is a supplementary review (both success and fail)
+      const isSupplementaryReview = session?.current_state?.startsWith('REVIEW_SUPP_');
       
       // For supplementary reviews, we need to determine the next difficulty
       let targetDifficulty = reviewSession.difficulty;
-      if (session?.current_state?.startsWith('REVIEW_SUPP_')) {
+      if (isSupplementaryReview) {
         // For supplementary reviews, move to next difficulty
         if (reviewSession.difficulty === 'N') {
           targetDifficulty = 'H';
@@ -443,11 +450,17 @@ export default function AdaptiveLearning() {
         } else {
           targetDifficulty = 'END';
         }
+      } else {
+        // For regular reviews, if we're at difficulty V, we should end
+        // But we still send the current difficulty and let backend handle the END logic
+        if (reviewSession.difficulty === 'V') {
+          targetDifficulty = 'V'; // Send current difficulty, backend will set state to END
+        }
       }
       
       // Use the appropriate API endpoint
-      const apiEndpoint = isDetailedSupplementaryReview 
-        ? `/api/adaptive/sessions/${session.id}/review/${reviewSession.id}/continue`
+      const apiEndpoint = isSupplementaryReview
+        ? `/api/adaptive/sessions/${session.id}/review/${reviewSession.id}/continue-supplementary`
         : `/api/adaptive/sessions/${session.id}/review/${reviewSession.id}/continue`;
       
       console.log('Making API call to:', apiEndpoint);
@@ -466,6 +479,12 @@ export default function AdaptiveLearning() {
       console.log('Continue after review response:', data);
       
       if (data.success) {
+        console.log('Continue after review success:', {
+          hasNextBundle: !!data.next_bundle,
+          currentState: data.session.current_state,
+          sessionId: session.id
+        });
+        
         setSession(data.session);
         setShowReview(false);
         setReviewSession(null);
@@ -477,7 +496,10 @@ export default function AdaptiveLearning() {
           setSelectedAnswer(null);
           setAnswers([]);
         } else if (data.session.current_state === 'END') {
+          console.log('Session ended, generating report...');
           await generateReport(session.id);
+        } else {
+          console.log('No next bundle and not END state:', data.session.current_state);
         }
       } else {
         setError(data.error || 'Failed to continue after review');
@@ -778,6 +800,8 @@ export default function AdaptiveLearning() {
                   className={`w-full h-12 text-lg font-semibold ${
                     isDetailedSupplementaryReview 
                       ? 'bg-orange-600 hover:bg-orange-700' 
+                      : reviewSession.difficulty === 'V'
+                      ? 'bg-green-600 hover:bg-green-700'
                       : ''
                   }`}
                 >
@@ -787,7 +811,9 @@ export default function AdaptiveLearning() {
                       Đang chuẩn bị...
                     </>
                   ) : (
-                    isDetailedSupplementaryReview 
+                    reviewSession.difficulty === 'V'
+                      ? 'Xem báo cáo kết quả'
+                      : isDetailedSupplementaryReview 
                       ? 'Tiếp tục độ khó tiếp theo' 
                       : 'Tiếp tục độ khó tiếp theo'
                   )}
