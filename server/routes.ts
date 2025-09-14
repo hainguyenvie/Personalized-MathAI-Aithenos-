@@ -3,8 +3,12 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertAssessmentSchema, insertGameScoreSchema, insertLearningPathSchema } from "@shared/schema";
 import { getChatResponse, generateMiniQuiz, buildOntologyContext } from "./openai";
+import adaptiveRoutes from "./adaptive-routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Adaptive Learning routes
+  app.use("/api/adaptive", adaptiveRoutes);
+
   // Authentication routes
   app.post("/api/auth/register", async (req, res) => {
     try {
