@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { adaptiveLearningManager, Question, Answer, Session } from './adaptive-learning';
-import { aiTutor, TutorContext, TutorSession } from './ai-tutor';
+import { adaptiveLearningManager, Question, Answer, Session, TutorSession } from './adaptive-learning';
+import { aiTutor, TutorContext } from './ai-tutor';
 
 const router = Router();
 
@@ -62,11 +62,24 @@ router.get('/sessions/:sessionId', async (req, res) => {
   }
 });
 
-// Start initial bundle (N difficulty)
+// Start initial bundle or specific difficulty
 router.post('/sessions/:sessionId/start', async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const bundle = adaptiveLearningManager.startBundle(sessionId, 'N');
+    const { difficulty } = req.body;
+    
+    // Use provided difficulty or default to 'N'
+    const targetDifficulty = difficulty || 'N';
+    const bundle = await adaptiveLearningManager.startBundle(sessionId, targetDifficulty as 'N' | 'H' | 'V');
+    
+    console.log('Generated bundle:', bundle.length, 'questions');
+    bundle.forEach((q, i) => {
+      console.log(`Question ${i + 1}:`, {
+        id: q.id,
+        choices: q.choices?.length || 0,
+        content: q.content?.substring(0, 50) + '...'
+      });
+    });
     
     res.json({
       success: true,
@@ -74,7 +87,7 @@ router.post('/sessions/:sessionId/start', async (req, res) => {
         id: q.id,
         content: q.content,
         type: q.type,
-        choices: q.choices,
+        choices: q.choices || [],
         difficulty: q.difficulty,
         difficulty_name: q.difficulty_name,
         lesson_id: q.lesson_id
@@ -108,6 +121,15 @@ router.post('/sessions/:sessionId/answers', async (req, res) => {
     // Process state transition
     const result = await adaptiveLearningManager.processStateTransition(sessionId, answerObjects);
     
+    console.log('State transition result:', {
+      current_state: result.session.current_state,
+      current_difficulty: result.session.current_difficulty,
+      hasNextBundle: !!result.nextBundle,
+      needsTutor: result.needsTutor,
+      needsReview: result.needsReview,
+      wrongAnswersCount: result.wrongAnswers?.length || 0
+    });
+    
     const response: any = {
       success: true,
       session: {
@@ -134,6 +156,17 @@ router.post('/sessions/:sessionId/answers', async (req, res) => {
     // Add tutor flag if needed
     if (result.needsTutor) {
       response.needs_tutor = true;
+      response.wrong_answers = result.wrongAnswers?.map(a => ({
+        question_id: a.question_id,
+        student_answer: a.student_answer,
+        is_correct: a.is_correct,
+        time_spent: a.time_spent
+      }));
+    }
+
+    // Add review flag if in review state
+    if (result.needsReview) {
+      response.needs_review = true;
     }
 
     res.json(response);
@@ -172,7 +205,7 @@ router.post('/sessions/:sessionId/tutor/start', async (req, res) => {
     };
 
     // Create tutor session
-    const tutorSession = await aiTutor.createTutorSession(tutorContext);
+    const tutorSession = await aiTutor.startTutorSession(tutorContext);
     
     // Store tutor session in main session
     session.tutor_sessions.push(tutorSession);
@@ -226,7 +259,7 @@ router.post('/sessions/:sessionId/tutor/:tutorSessionId/hint', async (req, res) 
       },
       tutor_session: {
         current_step: tutorSession.current_step,
-        max_steps: tutorSession.max_steps,
+        max_steps: 4, // Default max steps
         completed: tutorSession.completed
       }
     });
@@ -283,7 +316,7 @@ router.post('/sessions/:sessionId/tutor/:tutorSessionId/retest', async (req, res
     }
 
     // Generate retest questions
-    const retestQuestions = await aiTutor.generateRetestQuestions(tutorSession, 5);
+    const retestQuestions = await adaptiveLearningManager.generateRetestQuestions(sessionId);
     
     res.json({
       success: true,
@@ -345,7 +378,145 @@ router.get('/theory/:lessonId/example', async (req, res) => {
   }
 });
 
-// Generate mastery report
+// Generate review session
+router.post('/sessions/:sessionId/review', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { difficulty } = req.body;
+    
+    if (!difficulty || !['N', 'H', 'V'].includes(difficulty)) {
+      return res.status(400).json({ error: 'Valid difficulty (N, H, V) is required' });
+    }
+
+    const reviewSession = await adaptiveLearningManager.generateReviewSession(sessionId, difficulty);
+    
+    res.json({
+      success: true,
+      review_session: reviewSession
+    });
+  } catch (error) {
+    console.error('Error generating review session:', error);
+    res.status(500).json({ error: 'Failed to generate review session' });
+  }
+});
+
+// Get review session
+router.get('/sessions/:sessionId/review/:reviewId', async (req, res) => {
+  try {
+    const { sessionId, reviewId } = req.params;
+    const session = adaptiveLearningManager.getSession(sessionId);
+    
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const reviewSession = session.review_sessions.find(rs => rs.id === reviewId);
+    if (!reviewSession) {
+      return res.status(404).json({ error: 'Review session not found' });
+    }
+
+    res.json({
+      success: true,
+      review_session: reviewSession
+    });
+  } catch (error) {
+    console.error('Error getting review session:', error);
+    res.status(500).json({ error: 'Failed to get review session' });
+  }
+});
+
+// Continue to next difficulty after review
+router.post('/sessions/:sessionId/review/:reviewId/continue', async (req, res) => {
+  try {
+    const { sessionId, reviewId } = req.params;
+    const { difficulty } = req.body;
+    
+    if (!difficulty || !['N', 'H', 'V'].includes(difficulty)) {
+      return res.status(400).json({ error: 'Valid difficulty (N, H, V) is required' });
+    }
+
+    const session = adaptiveLearningManager.getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const reviewSession = session.review_sessions.find(rs => rs.id === reviewId);
+    if (!reviewSession) {
+      return res.status(404).json({ error: 'Review session not found' });
+    }
+
+    // Use the new continueAfterReview method
+    const result = await adaptiveLearningManager.continueAfterReview(sessionId, difficulty);
+
+    res.json({
+      success: true,
+      session: {
+        id: result.session.id,
+        current_state: result.session.current_state,
+        current_difficulty: result.session.current_difficulty
+      },
+      next_bundle: result.nextBundle ? result.nextBundle.map(q => ({
+        id: q.id,
+        content: q.content,
+        type: q.type,
+        choices: q.choices,
+        difficulty: q.difficulty,
+        difficulty_name: q.difficulty_name,
+        lesson_id: q.lesson_id
+      })) : null
+    });
+  } catch (error) {
+    console.error('Error continuing after review:', error);
+    res.status(500).json({ error: 'Failed to continue after review' });
+  }
+});
+
+// Continue to supplementary questions after fail review
+router.post('/sessions/:sessionId/review/:reviewId/continue-fail', async (req, res) => {
+  try {
+    const { sessionId, reviewId } = req.params;
+    const { difficulty } = req.body;
+    
+    if (!difficulty || !['N', 'H', 'V'].includes(difficulty)) {
+      return res.status(400).json({ error: 'Valid difficulty (N, H, V) is required' });
+    }
+
+    const session = adaptiveLearningManager.getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const reviewSession = session.review_sessions.find(rs => rs.id === reviewId);
+    if (!reviewSession) {
+      return res.status(404).json({ error: 'Review session not found' });
+    }
+
+    // Use the new continueAfterFailReview method
+    const result = await adaptiveLearningManager.continueAfterFailReview(sessionId, difficulty);
+
+    res.json({
+      success: true,
+      session: {
+        id: result.session.id,
+        current_state: result.session.current_state,
+        current_difficulty: result.session.current_difficulty
+      },
+      next_bundle: result.nextBundle ? result.nextBundle.map(q => ({
+        id: q.id,
+        content: q.content,
+        type: q.type,
+        choices: q.choices,
+        difficulty: q.difficulty,
+        difficulty_name: q.difficulty_name,
+        lesson_id: q.lesson_id
+      })) : null
+    });
+  } catch (error) {
+    console.error('Error continuing after fail review:', error);
+    res.status(500).json({ error: 'Failed to continue after fail review' });
+  }
+});
+
 router.get('/sessions/:sessionId/report', async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -358,6 +529,36 @@ router.get('/sessions/:sessionId/report', async (req, res) => {
   } catch (error) {
     console.error('Error generating mastery report:', error);
     res.status(500).json({ error: 'Failed to generate mastery report' });
+  }
+});
+
+// Test backup question generation
+router.post('/test/backup-question', async (req, res) => {
+  try {
+    const { lesson_id, difficulty } = req.body;
+    
+    if (!lesson_id || !difficulty) {
+      return res.status(400).json({ error: 'lesson_id and difficulty are required' });
+    }
+
+    const { questionBackupGenerator } = await import('./question-backup');
+    const questions = await questionBackupGenerator.generateTopicQuestions(lesson_id, difficulty, 3);
+    
+    res.json({
+      success: true,
+      questions: questions.map(q => ({
+        id: q.id,
+        content: q.content,
+        choices: q.choices,
+        correct_answer: q.correct_answer,
+        explanation: q.explanation,
+        difficulty: q.difficulty,
+        lesson_id: q.lesson_id
+      }))
+    });
+  } catch (error) {
+    console.error('Error testing backup question generation:', error);
+    res.status(500).json({ error: 'Failed to generate backup questions' });
   }
 });
 

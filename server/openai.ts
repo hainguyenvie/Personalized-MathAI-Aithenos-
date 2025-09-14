@@ -76,7 +76,7 @@ ${knowledgeContext}
 Hãy phản hồi theo phong cách Socratic, giúp học sinh tự khám phá ra lỗi sai và cách sửa chữa.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -162,7 +162,7 @@ export async function generateMiniQuiz(topic: string, difficulty: number): Promi
     }`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",

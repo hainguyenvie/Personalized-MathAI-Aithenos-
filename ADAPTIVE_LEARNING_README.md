@@ -9,7 +9,7 @@ Hệ thống Adaptive Learning là một tính năng tiên tiến của Aithenos
 ### 1. State Machine Flow
 
 ```
-INIT → BUNDLE_N → EVAL_N → (SUPP_N → TUTOR_N)* → BUNDLE_H → EVAL_H → (SUPP_H → TUTOR_H)* → BUNDLE_V → EVAL_V → (SUPP_V → TUTOR_V)* → END
+INIT → BUNDLE_N → EVAL_N → (SUPP_N → TUTOR_N)* → REVIEW_N → BUNDLE_H → EVAL_H → (SUPP_H → TUTOR_H)* → REVIEW_H → BUNDLE_V → EVAL_V → (SUPP_V → TUTOR_V)* → REVIEW_V → END
 ```
 
 **Các trạng thái chính:**
@@ -19,6 +19,7 @@ INIT → BUNDLE_N → EVAL_N → (SUPP_N → TUTOR_N)* → BUNDLE_H → EVAL_H �
 - `EVAL_X`: Đánh giá kết quả gói câu hỏi
 - `SUPP_X`: Tạo gói bổ sung khi điểm < 4/5
 - `TUTOR_X`: Kích hoạt gia sư AI khi vẫn không đạt
+- `REVIEW_X`: Tổng kết và đánh giá sau khi hoàn thành độ khó X
 - `END`: Kết thúc phiên học tập
 
 ### 2. Độ khó học tập
@@ -113,19 +114,33 @@ GET /api/adaptive/sessions/{sessionId}/report
 - Sử dụng OpenAI GPT-4 để tạo câu hỏi chất lượng cao
 - Đảm bảo độ khó và dạng bài tương đương
 
-### 2. Adaptive Assessment
+### 2. Backup System (MỚI)
+
+- **Tự động phát hiện câu hỏi thiếu đáp án**: Hệ thống tự động kiểm tra và phát hiện câu hỏi không có choices
+- **Sinh câu hỏi backup**: Sử dụng OpenAI để tạo câu hỏi mới với đầy đủ 4 đáp án
+- **Fallback thông minh**: Khi không có câu hỏi cho chủ đề nào đó, tự động sinh câu hỏi mới
+- **Đảm bảo chất lượng**: Tất cả câu hỏi đều có đáp án hợp lý và giải thích chi tiết
+
+### 3. Adaptive Assessment
 
 - Tự động điều chỉnh độ khó dựa trên kết quả
 - Phát hiện các chủ đề yếu của học sinh
 - Tạo gói câu hỏi bổ sung phù hợp
 
-### 3. AI Tutoring
+### 4. AI Tutoring
 
 - Hướng dẫn từng bước bằng phương pháp Socratic
 - Cung cấp lý thuyết và ví dụ minh họa
 - Tạo câu hỏi kiểm tra lại sau khi hướng dẫn
 
-### 4. Progress Tracking
+### 5. Review System (MỚI)
+
+- **Tổng kết sau mỗi độ khó**: Phân tích chi tiết kết quả học tập
+- **Đánh giá theo bài học**: Xác định điểm mạnh/yếu cho từng chủ đề
+- **Khuyến nghị AI**: Sử dụng GPT-4 để đưa ra lời khuyên cá nhân hóa
+- **Chuẩn bị độ khó tiếp theo**: Hướng dẫn cụ thể để tiến lên mức cao hơn
+
+### 6. Progress Tracking
 
 - Theo dõi tiến độ học tập theo thời gian thực
 - Tạo báo cáo chi tiết về điểm mạnh/yếu
@@ -169,6 +184,12 @@ GET /api/adaptive/sessions/{sessionId}/report
 
 - `GET /api/adaptive/theory/{lessonId}/summary` - Tóm tắt lý thuyết
 - `GET /api/adaptive/theory/{lessonId}/example` - Ví dụ minh họa
+
+### Review System
+
+- `POST /api/adaptive/sessions/{id}/review` - Tạo phiên tổng kết
+- `GET /api/adaptive/sessions/{id}/review/{reviewId}` - Lấy thông tin tổng kết
+- `POST /api/adaptive/sessions/{id}/review/{reviewId}/continue` - Tiếp tục sau tổng kết
 
 ### Reports
 
@@ -243,6 +264,42 @@ Thêm `console.log` vào các function để debug:
 
 ```typescript
 console.log("Debug:", { sessionId, currentState, answers });
+```
+
+## Backup System - Tính năng mới
+
+### Vấn đề được giải quyết
+
+- **Câu hỏi thiếu đáp án**: Một số câu hỏi trong database không có choices (đáp án)
+- **Thiếu câu hỏi cho chủ đề**: Không đủ câu hỏi cho một số bài học
+- **Chất lượng không đồng đều**: Một số câu hỏi có chất lượng thấp
+
+### Giải pháp Backup System
+
+1. **Tự động phát hiện**: Hệ thống kiểm tra mỗi câu hỏi có đủ 4 đáp án không
+2. **Sinh câu hỏi backup**: Sử dụng OpenAI GPT-4 để tạo câu hỏi mới với đầy đủ đáp án
+3. **Fallback thông minh**: Khi không có câu hỏi cho chủ đề, tự động sinh câu hỏi mới
+4. **Đảm bảo chất lượng**: Tất cả câu hỏi đều có giải thích chi tiết
+
+### API Test Backup System
+
+```bash
+POST /api/adaptive/test/backup-question
+{
+  "lesson_id": 1,
+  "difficulty": "N"
+}
+```
+
+### Cách chạy với Backup System
+
+```bash
+# Chạy tự động (Windows)
+start-servers.bat
+
+# Hoặc chạy thủ công
+npx tsx server/index.ts  # Backend
+npx vite --port 5173     # Frontend
 ```
 
 ## Liên hệ hỗ trợ

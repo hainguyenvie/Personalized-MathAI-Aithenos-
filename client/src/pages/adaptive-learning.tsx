@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, BookOpen, Lightbulb, Target, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, BookOpen, Lightbulb, Target, CheckCircle, XCircle, Brain } from 'lucide-react';
 
 interface Question {
   id: string;
@@ -48,6 +48,29 @@ interface TutorSession {
   };
 }
 
+interface ReviewSession {
+  id: string;
+  difficulty: string;
+  lesson_summary: {
+    [lesson: number]: {
+      total_questions: number;
+      correct_answers: number;
+      accuracy: number;
+      weak_topics: string[];
+      strong_topics: string[];
+    }
+  };
+  overall_performance: {
+    total_questions: number;
+    correct_answers: number;
+    accuracy: number;
+    time_spent: number;
+  };
+  recommendations: string[];
+  next_difficulty_preparation: string[];
+  created_at: string;
+}
+
 export default function AdaptiveLearning() {
   const [session, setSession] = useState<Session | null>(null);
   const [currentBundle, setCurrentBundle] = useState<Question[]>([]);
@@ -65,6 +88,8 @@ export default function AdaptiveLearning() {
   const [theoryContent, setTheoryContent] = useState('');
   const [showReport, setShowReport] = useState(false);
   const [report, setReport] = useState<any>(null);
+  const [showReview, setShowReview] = useState(false);
+  const [reviewSession, setReviewSession] = useState<ReviewSession | null>(null);
 
   // Initialize session
   const initializeSession = async (studentName: string, grade: string) => {
@@ -99,7 +124,10 @@ export default function AdaptiveLearning() {
       });
       
       const data = await response.json();
+      console.log('Bundle response:', data); // Debug log
+      
       if (data.success) {
+        console.log('Bundle questions:', data.bundle); // Debug log
         setCurrentBundle(data.bundle);
         setCurrentQuestionIndex(0);
         setSelectedAnswer(null);
@@ -108,6 +136,7 @@ export default function AdaptiveLearning() {
         setError(data.error || 'Failed to start bundle');
       }
     } catch (err) {
+      console.error('Bundle error:', err); // Debug log
       setError('Failed to start bundle');
     } finally {
       setLoading(false);
@@ -151,13 +180,22 @@ export default function AdaptiveLearning() {
       });
       
       const data = await response.json();
+      console.log('Submit bundle response:', data);
+      
       if (data.success) {
         setSession(data.session);
         
         if (data.needs_tutor) {
+          console.log('Need tutor session');
           setShowTutor(true);
-          await startTutorSession(sessionId, bundleAnswers);
+          // Pass wrong answers to tutor session
+          await startTutorSession(sessionId, data.wrong_answers || bundleAnswers);
+        } else if (data.needs_review || data.session.current_state?.startsWith('REVIEW_')) {
+          console.log('Need review session, current state:', data.session.current_state);
+          // Show review session
+          await showReviewSession(sessionId, data.session.current_difficulty);
         } else if (data.next_bundle) {
+          console.log('Got next bundle:', data.next_bundle.length, 'questions');
           setCurrentBundle(data.next_bundle);
           setCurrentQuestionIndex(0);
           setSelectedAnswer(null);
@@ -176,9 +214,10 @@ export default function AdaptiveLearning() {
   };
 
   // Start tutor session
-  const startTutorSession = async (sessionId: string, bundleAnswers: typeof answers) => {
+  const startTutorSession = async (sessionId: string, wrongAnswers: any[]) => {
     try {
-      const wrongAnswer = bundleAnswers.find(a => !a.is_correct);
+      // Use the first wrong answer to start tutor session
+      const wrongAnswer = wrongAnswers.find(a => !a.is_correct) || wrongAnswers[0];
       if (!wrongAnswer) return;
 
       const response = await fetch(`/api/adaptive/sessions/${sessionId}/tutor/start`, {
@@ -233,8 +272,8 @@ export default function AdaptiveLearning() {
     const data = await response.json();
     if (data.success) {
       if (data.result.is_correct) {
-        // Student got it right, generate retest questions
-        await generateRetestQuestions(session.id, tutorSession.id);
+        // Student got it right, complete tutor session and move to next difficulty
+        await completeTutorSession(session.id, tutorSession.id);
       } else {
         // Get next hint
         await getTutorHint(session.id, tutorSession.id);
@@ -242,16 +281,34 @@ export default function AdaptiveLearning() {
     }
   };
 
-  // Generate retest questions
-  const generateRetestQuestions = async (sessionId: string, tutorSessionId: string) => {
+  // Complete tutor session and move to next difficulty
+  const completeTutorSession = async (sessionId: string, tutorSessionId: string) => {
     try {
-      const response = await fetch(`/api/adaptive/sessions/${sessionId}/tutor/${tutorSessionId}/retest`, {
-        method: 'POST'
+      // After tutor session, move to next difficulty
+      const currentDifficulty = session?.current_difficulty;
+      if (!currentDifficulty) return;
+
+      let nextDifficulty: string;
+      if (currentDifficulty === 'N') {
+        nextDifficulty = 'H';
+      } else if (currentDifficulty === 'H') {
+        nextDifficulty = 'V';
+      } else {
+        // End session
+        await generateReport(sessionId);
+        return;
+      }
+
+      // Start next difficulty bundle
+      const response = await fetch(`/api/adaptive/sessions/${sessionId}/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ difficulty: nextDifficulty })
       });
       
       const data = await response.json();
       if (data.success) {
-        setCurrentBundle(data.retest_questions);
+        setCurrentBundle(data.bundle);
         setCurrentQuestionIndex(0);
         setSelectedAnswer(null);
         setAnswers([]);
@@ -260,7 +317,7 @@ export default function AdaptiveLearning() {
         setCurrentHint(null);
       }
     } catch (err) {
-      setError('Failed to generate retest questions');
+      setError('Failed to complete tutor session');
     }
   };
 
@@ -292,13 +349,143 @@ export default function AdaptiveLearning() {
     }
   };
 
+  // Show review session
+  const showReviewSession = async (sessionId: string, difficulty: string) => {
+    try {
+      console.log('Generating review session for difficulty:', difficulty);
+      const response = await fetch(`/api/adaptive/sessions/${sessionId}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ difficulty })
+      });
+      
+      const data = await response.json();
+      console.log('Review session response:', data);
+      
+      if (data.success) {
+        setReviewSession(data.review_session);
+        setShowReview(true);
+      } else {
+        setError(data.error || 'Failed to generate review session');
+      }
+    } catch (err) {
+      console.error('Error generating review session:', err);
+      setError('Failed to generate review session');
+    }
+  };
+
+  // Continue to next difficulty after review
+  const continueAfterReview = async () => {
+    console.log('continueAfterReview called:', { session: !!session, reviewSession: !!reviewSession });
+    if (!session || !reviewSession) {
+      console.log('Missing session or reviewSession');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      // Use the continueAfterReview API
+      console.log('Making API call to:', `/api/adaptive/sessions/${session.id}/review/${reviewSession.id}/continue`);
+      console.log('Request body:', { difficulty: reviewSession.difficulty });
+      
+      const response = await fetch(`/api/adaptive/sessions/${session.id}/review/${reviewSession.id}/continue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ difficulty: reviewSession.difficulty })
+      });
+      
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+      
+      const data = await response.json();
+      console.log('Continue after review response:', data);
+      
+      if (data.success) {
+        setSession(data.session);
+        setShowReview(false);
+        setReviewSession(null);
+        
+        if (data.next_bundle) {
+          console.log('Got next bundle after review:', data.next_bundle.length, 'questions');
+          setCurrentBundle(data.next_bundle);
+          setCurrentQuestionIndex(0);
+          setSelectedAnswer(null);
+          setAnswers([]);
+        } else if (data.session.current_state === 'END') {
+          await generateReport(session.id);
+        }
+      } else {
+        setError(data.error || 'Failed to continue after review');
+      }
+    } catch (err) {
+      console.error('Error continuing after review:', err);
+      setError('Failed to continue after review');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Continue to supplementary questions after fail review
+  const continueAfterFailReview = async () => {
+    console.log('continueAfterFailReview called:', { session: !!session, reviewSession: !!reviewSession });
+    if (!session || !reviewSession) {
+      console.log('Missing session or reviewSession');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      // Use the continueAfterFailReview API
+      console.log('Making API call to:', `/api/adaptive/sessions/${session.id}/review/${reviewSession.id}/continue-fail`);
+      console.log('Request body:', { difficulty: reviewSession.difficulty });
+      
+      const response = await fetch(`/api/adaptive/sessions/${session.id}/review/${reviewSession.id}/continue-fail`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ difficulty: reviewSession.difficulty })
+      });
+      
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+      
+      const data = await response.json();
+      console.log('Continue after fail review response:', data);
+      
+      if (data.success) {
+        setSession(data.session);
+        setShowReview(false);
+        setReviewSession(null);
+        
+        if (data.next_bundle) {
+          console.log('Got supplementary bundle after fail review:', data.next_bundle.length, 'questions');
+          setCurrentBundle(data.next_bundle);
+          setCurrentQuestionIndex(0);
+          setSelectedAnswer(null);
+          setAnswers([]);
+        }
+      } else {
+        setError(data.error || 'Failed to continue after fail review');
+      }
+    } catch (err) {
+      console.error('Error continuing after fail review:', err);
+      setError('Failed to continue after fail review');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!session) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
         <div className="max-w-md mx-auto mt-20">
           <Card>
             <CardHeader>
-              <CardTitle className="text-center">Bắt đầu phiên học tập</CardTitle>
+              <CardTitle className="text-center flex items-center justify-center space-x-2">
+                <Brain className="w-6 h-6 text-blue-600" />
+                <span>Bắt đầu phiên học tập</span>
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -306,6 +493,7 @@ export default function AdaptiveLearning() {
                 <Input
                   id="studentName"
                   placeholder="Nhập tên của bạn"
+                  value={studentResponse}
                   onChange={(e) => setStudentResponse(e.target.value)}
                 />
               </div>
@@ -324,11 +512,156 @@ export default function AdaptiveLearning() {
               </div>
               <Button 
                 onClick={() => initializeSession(studentResponse, '12')}
-                disabled={loading}
-                className="w-full"
+                disabled={loading || !studentResponse.trim()}
+                className="w-full h-12 text-lg font-semibold"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Bắt đầu'}
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    Đang khởi tạo...
+                  </>
+                ) : (
+                  'Bắt đầu học tập'
+                )}
               </Button>
+              
+              {error && (
+                <Alert variant="destructive">
+                  <XCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (showReview && reviewSession) {
+    // Check if this is a fail review based on session state
+    const isFailReview = session?.current_state?.startsWith('REVIEW_FAIL_');
+    
+    return (
+      <div className={`min-h-screen bg-gradient-to-br p-4 ${isFailReview ? 'from-red-50 to-orange-100' : 'from-purple-50 to-pink-100'}`}>
+        <div className="max-w-4xl mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-center flex items-center justify-center space-x-2">
+                <Target className={`w-6 h-6 ${isFailReview ? 'text-red-600' : 'text-purple-600'}`} />
+                <span>
+                  {isFailReview ? 'Đánh giá kết quả' : 'Tổng kết độ khó'} {reviewSession.difficulty === 'N' ? 'Nhận biết' : reviewSession.difficulty === 'H' ? 'Thông hiểu' : 'Vận dụng'}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Overall Performance */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">{reviewSession.overall_performance.total_questions}</div>
+                  <div className="text-sm text-gray-600">Tổng câu hỏi</div>
+                </div>
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">{reviewSession.overall_performance.correct_answers}</div>
+                  <div className="text-sm text-gray-600">Câu đúng</div>
+                </div>
+                <div className="text-center p-4 bg-purple-50 rounded-lg">
+                  <div className="text-2xl font-bold text-purple-600">{reviewSession.overall_performance.accuracy.toFixed(1)}%</div>
+                  <div className="text-sm text-gray-600">Độ chính xác</div>
+                </div>
+                <div className="text-center p-4 bg-orange-50 rounded-lg">
+                  <div className="text-2xl font-bold text-orange-600">{Math.round(reviewSession.overall_performance.time_spent / 60)}m</div>
+                  <div className="text-sm text-gray-600">Thời gian</div>
+                </div>
+              </div>
+
+              {/* Lesson Summary */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3">Kết quả theo bài học</h3>
+                <div className="space-y-3">
+                  {Object.entries(reviewSession.lesson_summary).map(([lesson, summary]) => (
+                    <div key={lesson} className="flex items-center justify-between p-4 bg-white rounded-lg border">
+                      <div className="flex-1">
+                        <div className="font-semibold">Bài {lesson}</div>
+                        <div className="text-sm text-gray-600">{summary.correct_answers}/{summary.total_questions} câu đúng</div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant={summary.accuracy >= 80 ? "default" : summary.accuracy >= 70 ? "secondary" : "destructive"}>
+                          {summary.accuracy.toFixed(1)}%
+                        </Badge>
+                        {summary.strong_topics.length > 0 && (
+                          <Badge variant="outline" className="text-green-600">Mạnh</Badge>
+                        )}
+                        {summary.weak_topics.length > 0 && (
+                          <Badge variant="outline" className="text-red-600">Yếu</Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Recommendations */}
+              {reviewSession.recommendations.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-3">Khuyến nghị học tập</h3>
+                  <ul className="space-y-2">
+                    {reviewSession.recommendations.map((rec, index) => (
+                      <li key={index} className="flex items-start space-x-2">
+                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                        <span>{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Next Difficulty Preparation */}
+              {reviewSession.next_difficulty_preparation.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-3">Chuẩn bị cho độ khó tiếp theo</h3>
+                  <ul className="space-y-2">
+                    {reviewSession.next_difficulty_preparation.map((tip, index) => (
+                      <li key={index} className="flex items-start space-x-2">
+                        <Lightbulb className="w-5 h-5 text-yellow-500 mt-0.5" />
+                        <span>{tip}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {isFailReview ? (
+                <Button 
+                  onClick={continueAfterFailReview}
+                  disabled={loading}
+                  className="w-full h-12 text-lg font-semibold bg-orange-600 hover:bg-orange-700"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                      Đang chuẩn bị...
+                    </>
+                  ) : (
+                    'Tiếp tục với bài tập bổ sung'
+                  )}
+                </Button>
+              ) : (
+                <Button 
+                  onClick={continueAfterReview}
+                  disabled={loading}
+                  className="w-full h-12 text-lg font-semibold"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                      Đang chuẩn bị...
+                    </>
+                  ) : (
+                    'Tiếp tục độ khó tiếp theo'
+                  )}
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -498,45 +831,66 @@ export default function AdaptiveLearning() {
               <CardTitle className="flex items-center space-x-2">
                 <Target className="w-5 h-5" />
                 <span>Câu hỏi {currentQuestionIndex + 1}</span>
+                <Badge variant="outline" className="ml-auto">
+                  {currentQuestion.difficulty_name}
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="text-lg leading-relaxed">
-                {currentQuestion.content}
+              <div className="text-lg leading-relaxed bg-gray-50 p-6 rounded-lg border">
+                <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: currentQuestion.content }} />
               </div>
               
+              {/* Debug info */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="text-xs text-gray-500 p-2 bg-yellow-50 rounded">
+                  Debug: {currentQuestion.choices?.length || 0} choices available
+                </div>
+              )}
+              
               <div className="space-y-3">
-                {currentQuestion.choices.map((choice, index) => (
-                  <div
-                    key={index}
-                    className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                      selectedAnswer === index
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    onClick={() => setSelectedAnswer(index)}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                {currentQuestion.choices && currentQuestion.choices.length > 0 ? (
+                  currentQuestion.choices.map((choice, index) => (
+                    <div
+                      key={index}
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
                         selectedAnswer === index
-                          ? 'border-blue-500 bg-blue-500 text-white'
-                          : 'border-gray-300'
-                      }`}>
-                        {String.fromCharCode(65 + index)}
+                          ? 'border-blue-500 bg-blue-50 shadow-md'
+                          : 'border-gray-200 hover:border-blue-300 hover:bg-blue-25'
+                      }`}
+                      onClick={() => setSelectedAnswer(index)}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center font-semibold ${
+                          selectedAnswer === index
+                            ? 'border-blue-500 bg-blue-500 text-white'
+                            : 'border-gray-300 bg-white'
+                        }`}>
+                          {String.fromCharCode(65 + index)}
+                        </div>
+                        <div className="flex-1">
+                          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: choice }} />
+                        </div>
                       </div>
-                      <span>{choice}</span>
                     </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <Alert variant="destructive">
+                    <XCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Không có đáp án để chọn. Vui lòng thử lại.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
 
               <Button 
                 onClick={submitAnswer}
-                disabled={selectedAnswer === null || loading}
-                className="w-full"
+                disabled={selectedAnswer === null || loading || !currentQuestion.choices?.length}
+                className="w-full h-12 text-lg font-semibold"
               >
                 {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
                 ) : currentQuestionIndex < currentBundle.length - 1 ? (
                   'Câu tiếp theo'
                 ) : (

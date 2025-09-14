@@ -2,10 +2,10 @@ import OpenAI from "openai";
 import fs from "fs";
 import path from "path";
 
-// Initialize OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI client only if the API key is present
+const apiKey = process.env.OPENAI_API_KEY;
+const openaiEnabled = Boolean(apiKey);
+const openai = openaiEnabled ? new OpenAI({ apiKey }) : null;
 
 export interface TutorContext {
   lesson_id: number;
@@ -81,6 +81,11 @@ export class AITutor {
     return session;
   }
 
+  // Alias for compatibility
+  async startTutorSession(context: TutorContext): Promise<TutorSession> {
+    return this.createTutorSession(context);
+  }
+
   async generateHint(session: TutorSession, studentResponse?: string): Promise<TutorHint> {
     const { context } = session;
     
@@ -93,6 +98,11 @@ export class AITutor {
     const isFinal = nextStep >= session.max_steps;
 
     try {
+      if (!openaiEnabled || !openai) {
+        console.log('OpenAI not available, using fallback hints');
+        return this.generateFallbackHint(nextStep, isFinal);
+      }
+
       const theoryContent = this.theoryContent[context.lesson_id] || '';
       
       const prompt = `
@@ -132,8 +142,8 @@ Trả về JSON với format:
 }
 `;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await openai!.chat.completions.create({
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -165,29 +175,28 @@ Trả về JSON với format:
       return hint;
     } catch (error) {
       console.error('Error generating hint:', error);
-      
-      // Fallback hint
-      const fallbackHints = [
-        "Hãy đọc lại đề bài cẩn thận và xác định những gì đề bài yêu cầu.",
-        "Thử nghĩ về các công thức hoặc phương pháp có thể áp dụng cho bài này.",
-        "Kiểm tra lại các bước tính toán và chú ý đến dấu, điều kiện.",
-        "Hãy thử giải bài tương tự với số liệu đơn giản hơn để hiểu rõ phương pháp."
-      ];
-
-      const hint: TutorHint = {
-        id: `hint_${session.id}_${nextStep}`,
-        level: nextStep,
-        content: fallbackHints[nextStep - 1] || "Hãy thử lại nhé!",
-        type: 'concept',
-        is_final: isFinal
-      };
-
-      session.hints_used.push(hint);
-      session.current_step = nextStep;
-      session.completed = isFinal;
-
-      return hint;
+      return this.generateFallbackHint(nextStep, isFinal);
     }
+  }
+
+  // Fallback method when OpenAI is not available
+  private generateFallbackHint(nextStep: number, isFinal: boolean): TutorHint {
+    const fallbackHints = [
+      "Hãy đọc lại đề bài cẩn thận và xác định những gì đề bài yêu cầu.",
+      "Thử nghĩ về các công thức hoặc phương pháp có thể áp dụng cho bài này.",
+      "Kiểm tra lại các bước tính toán và chú ý đến dấu, điều kiện.",
+      "Hãy thử giải bài tương tự với số liệu đơn giản hơn để hiểu rõ phương pháp."
+    ];
+
+    const hint: TutorHint = {
+      id: `fallback_hint_${nextStep}`,
+      level: nextStep,
+      content: fallbackHints[nextStep - 1] || "Hãy thử lại nhé!",
+      type: 'concept',
+      is_final: isFinal
+    };
+
+    return hint;
   }
 
   async checkStudentResponse(session: TutorSession, studentResponse: string): Promise<{
@@ -219,8 +228,8 @@ Trả về JSON:
 }
 `;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await openai!.chat.completions.create({
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -290,8 +299,8 @@ Trả về JSON:
 }
 `;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await openai!.chat.completions.create({
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -334,8 +343,8 @@ Yêu cầu:
 Trả về nội dung tóm tắt bằng tiếng Việt, dễ hiểu cho học sinh lớp 12.
 `;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await openai!.chat.completions.create({
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -376,8 +385,8 @@ Yêu cầu:
 Trả về ví dụ minh họa bằng tiếng Việt, dễ hiểu cho học sinh lớp 12.
 `;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await openai!.chat.completions.create({
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
