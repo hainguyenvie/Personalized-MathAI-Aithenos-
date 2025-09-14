@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, BookOpen, Lightbulb, Target, CheckCircle, XCircle, Brain } from 'lucide-react';
+import MathRenderer from '@/components/math-renderer';
 
 interface Question {
   id: string;
@@ -58,6 +59,16 @@ interface ReviewSession {
       accuracy: number;
       weak_topics: string[];
       strong_topics: string[];
+      detailed_explanations?: Array<{
+        question_id: string;
+        lesson_id: number;
+        content: string;
+        explanation: string;
+        theory_summary: string;
+        step_by_step_solution: string;
+        common_mistakes: string;
+        similar_exercises: string;
+      }>;
     }
   };
   overall_performance: {
@@ -192,8 +203,16 @@ export default function AdaptiveLearning() {
           await startTutorSession(sessionId, data.wrong_answers || bundleAnswers);
         } else if (data.needs_review || data.session.current_state?.startsWith('REVIEW_')) {
           console.log('Need review session, current state:', data.session.current_state);
-          // Show review session
-          await showReviewSession(sessionId, data.session.current_difficulty);
+          // Check if this is a detailed supplementary review
+          if (data.session.current_state?.startsWith('REVIEW_SUPP_FAIL_')) {
+            await showDetailedSupplementaryReview(sessionId, data.session.current_difficulty);
+          } else if (data.session.current_state?.startsWith('REVIEW_SUPP_')) {
+            // This is a regular supplementary review (score >= 80%)
+            await showReviewSession(sessionId, data.session.current_difficulty);
+          } else {
+            // Show regular review session for main difficulty
+            await showReviewSession(sessionId, data.session.current_difficulty);
+          }
         } else if (data.next_bundle) {
           console.log('Got next bundle:', data.next_bundle.length, 'questions');
           setCurrentBundle(data.next_bundle);
@@ -374,6 +393,31 @@ export default function AdaptiveLearning() {
     }
   };
 
+  // Show detailed supplementary review session
+  const showDetailedSupplementaryReview = async (sessionId: string, difficulty: string) => {
+    try {
+      console.log('Generating detailed supplementary review session for difficulty:', difficulty);
+      const response = await fetch(`/api/adaptive/sessions/${sessionId}/review/detailed-supplementary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ difficulty })
+      });
+      
+      const data = await response.json();
+      console.log('Detailed supplementary review session response:', data);
+      
+      if (data.success) {
+        setReviewSession(data.review_session);
+        setShowReview(true);
+      } else {
+        setError(data.error || 'Failed to generate detailed supplementary review session');
+      }
+    } catch (err) {
+      console.error('Error generating detailed supplementary review session:', err);
+      setError('Failed to generate detailed supplementary review session');
+    }
+  };
+
   // Continue to next difficulty after review
   const continueAfterReview = async () => {
     console.log('continueAfterReview called:', { session: !!session, reviewSession: !!reviewSession });
@@ -385,14 +429,34 @@ export default function AdaptiveLearning() {
     try {
       setLoading(true);
       
-      // Use the continueAfterReview API
-      console.log('Making API call to:', `/api/adaptive/sessions/${session.id}/review/${reviewSession.id}/continue`);
-      console.log('Request body:', { difficulty: reviewSession.difficulty });
+      // Check if this is a detailed supplementary review
+      const isDetailedSupplementaryReview = session?.current_state?.startsWith('REVIEW_SUPP_FAIL_');
       
-      const response = await fetch(`/api/adaptive/sessions/${session.id}/review/${reviewSession.id}/continue`, {
+      // For supplementary reviews, we need to determine the next difficulty
+      let targetDifficulty = reviewSession.difficulty;
+      if (session?.current_state?.startsWith('REVIEW_SUPP_')) {
+        // For supplementary reviews, move to next difficulty
+        if (reviewSession.difficulty === 'N') {
+          targetDifficulty = 'H';
+        } else if (reviewSession.difficulty === 'H') {
+          targetDifficulty = 'V';
+        } else {
+          targetDifficulty = 'END';
+        }
+      }
+      
+      // Use the appropriate API endpoint
+      const apiEndpoint = isDetailedSupplementaryReview 
+        ? `/api/adaptive/sessions/${session.id}/review/${reviewSession.id}/continue`
+        : `/api/adaptive/sessions/${session.id}/review/${reviewSession.id}/continue`;
+      
+      console.log('Making API call to:', apiEndpoint);
+      console.log('Request body:', { difficulty: targetDifficulty });
+      
+      const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ difficulty: reviewSession.difficulty })
+        body: JSON.stringify({ difficulty: targetDifficulty })
       });
       
       console.log('Response status:', response.status);
@@ -541,16 +605,24 @@ export default function AdaptiveLearning() {
   if (showReview && reviewSession) {
     // Check if this is a fail review based on session state
     const isFailReview = session?.current_state?.startsWith('REVIEW_FAIL_');
+    const isDetailedSupplementaryReview = session?.current_state?.startsWith('REVIEW_SUPP_FAIL_');
     
     return (
-      <div className={`min-h-screen bg-gradient-to-br p-4 ${isFailReview ? 'from-red-50 to-orange-100' : 'from-purple-50 to-pink-100'}`}>
+      <div className={`min-h-screen bg-gradient-to-br p-4 ${
+        isDetailedSupplementaryReview ? 'from-orange-50 to-red-100' : 
+        isFailReview ? 'from-red-50 to-orange-100' : 'from-purple-50 to-pink-100'
+      }`}>
         <div className="max-w-4xl mx-auto">
           <Card>
             <CardHeader>
               <CardTitle className="text-center flex items-center justify-center space-x-2">
-                <Target className={`w-6 h-6 ${isFailReview ? 'text-red-600' : 'text-purple-600'}`} />
+                <Target className={`w-6 h-6 ${
+                  isDetailedSupplementaryReview ? 'text-orange-600' : 
+                  isFailReview ? 'text-red-600' : 'text-purple-600'
+                }`} />
                 <span>
-                  {isFailReview ? 'Đánh giá kết quả' : 'Tổng kết độ khó'} {reviewSession.difficulty === 'N' ? 'Nhận biết' : reviewSession.difficulty === 'H' ? 'Thông hiểu' : 'Vận dụng'}
+                  {isDetailedSupplementaryReview ? 'Đánh giá chi tiết bài tập bổ sung' :
+                   isFailReview ? 'Đánh giá kết quả' : 'Tổng kết độ khó'} {reviewSession.difficulty === 'N' ? 'Nhận biết' : reviewSession.difficulty === 'H' ? 'Thông hiểu' : 'Vận dụng'}
                 </span>
               </CardTitle>
             </CardHeader>
@@ -580,22 +652,75 @@ export default function AdaptiveLearning() {
                 <h3 className="text-lg font-semibold mb-3">Kết quả theo bài học</h3>
                 <div className="space-y-3">
                   {Object.entries(reviewSession.lesson_summary).map(([lesson, summary]) => (
-                    <div key={lesson} className="flex items-center justify-between p-4 bg-white rounded-lg border">
-                      <div className="flex-1">
-                        <div className="font-semibold">Bài {lesson}</div>
-                        <div className="text-sm text-gray-600">{summary.correct_answers}/{summary.total_questions} câu đúng</div>
+                    <div key={lesson} className="p-4 bg-white rounded-lg border">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="font-semibold">Bài {lesson}</div>
+                          <div className="text-sm text-gray-600">{summary.correct_answers}/{summary.total_questions} câu đúng</div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant={summary.accuracy >= 80 ? "default" : summary.accuracy >= 70 ? "secondary" : "destructive"}>
+                            {summary.accuracy.toFixed(1)}%
+                          </Badge>
+                          {summary.strong_topics.length > 0 && (
+                            <Badge variant="outline" className="text-green-600">Mạnh</Badge>
+                          )}
+                          {summary.weak_topics.length > 0 && (
+                            <Badge variant="outline" className="text-red-600">Yếu</Badge>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant={summary.accuracy >= 80 ? "default" : summary.accuracy >= 70 ? "secondary" : "destructive"}>
-                          {summary.accuracy.toFixed(1)}%
-                        </Badge>
-                        {summary.strong_topics.length > 0 && (
-                          <Badge variant="outline" className="text-green-600">Mạnh</Badge>
-                        )}
-                        {summary.weak_topics.length > 0 && (
-                          <Badge variant="outline" className="text-red-600">Yếu</Badge>
-                        )}
-                      </div>
+                      
+                      {/* Detailed Explanations for Supplementary Review */}
+                      {isDetailedSupplementaryReview && summary.detailed_explanations && summary.detailed_explanations.length > 0 && (
+                        <div className="mt-4 space-y-4">
+                          <h4 className="font-semibold text-orange-800">📚 Giải thích chi tiết cho các câu sai:</h4>
+                          {summary.detailed_explanations.map((explanation: any, index: number) => (
+                            <div key={index} className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                              <div className="mb-3">
+                                <h5 className="font-semibold text-orange-800 mb-2">Câu hỏi:</h5>
+                                <div className="prose prose-sm text-orange-700" dangerouslySetInnerHTML={{ __html: explanation.content }} />
+                              </div>
+                              
+                              {explanation.theory_summary && (
+                                <div className="mb-3">
+                                  <h5 className="font-semibold text-blue-800 mb-2">📖 Lý thuyết liên quan:</h5>
+                                  <div className="prose prose-sm text-blue-700 whitespace-pre-line">
+                                    {explanation.theory_summary}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {explanation.step_by_step_solution && (
+                                <div className="mb-3">
+                                  <h5 className="font-semibold text-green-800 mb-2">🔍 Lời giải từng bước:</h5>
+                                  <div className="prose prose-sm text-green-700 whitespace-pre-line">
+                                    {explanation.step_by_step_solution}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {explanation.common_mistakes && (
+                                <div className="mb-3">
+                                  <h5 className="font-semibold text-red-800 mb-2">⚠️ Các lỗi thường gặp:</h5>
+                                  <div className="prose prose-sm text-red-700 whitespace-pre-line">
+                                    {explanation.common_mistakes}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {explanation.similar_exercises && (
+                                <div>
+                                  <h5 className="font-semibold text-purple-800 mb-2">💡 Bài tập tương tự:</h5>
+                                  <div className="prose prose-sm text-purple-700 whitespace-pre-line">
+                                    {explanation.similar_exercises}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -650,7 +775,11 @@ export default function AdaptiveLearning() {
                 <Button 
                   onClick={continueAfterReview}
                   disabled={loading}
-                  className="w-full h-12 text-lg font-semibold"
+                  className={`w-full h-12 text-lg font-semibold ${
+                    isDetailedSupplementaryReview 
+                      ? 'bg-orange-600 hover:bg-orange-700' 
+                      : ''
+                  }`}
                 >
                   {loading ? (
                     <>
@@ -658,7 +787,9 @@ export default function AdaptiveLearning() {
                       Đang chuẩn bị...
                     </>
                   ) : (
-                    'Tiếp tục độ khó tiếp theo'
+                    isDetailedSupplementaryReview 
+                      ? 'Tiếp tục độ khó tiếp theo' 
+                      : 'Tiếp tục độ khó tiếp theo'
                   )}
                 </Button>
               )}
@@ -838,7 +969,7 @@ export default function AdaptiveLearning() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="text-lg leading-relaxed bg-gray-50 p-6 rounded-lg border">
-                <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: currentQuestion.content }} />
+                <MathRenderer content={currentQuestion.content} className="prose max-w-none" />
               </div>
               
               {/* Debug info */}
@@ -869,7 +1000,7 @@ export default function AdaptiveLearning() {
                           {String.fromCharCode(65 + index)}
                         </div>
                         <div className="flex-1">
-                          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: choice }} />
+                          <MathRenderer content={choice} className="prose max-w-none" />
                         </div>
                       </div>
                     </div>

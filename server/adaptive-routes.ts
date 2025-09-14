@@ -400,6 +400,28 @@ router.post('/sessions/:sessionId/review', async (req, res) => {
   }
 });
 
+// Generate detailed supplementary review session
+router.post('/sessions/:sessionId/review/detailed-supplementary', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { difficulty } = req.body;
+    
+    if (!difficulty || !['N', 'H', 'V'].includes(difficulty)) {
+      return res.status(400).json({ error: 'Valid difficulty (N, H, V) is required' });
+    }
+
+    const reviewSession = await adaptiveLearningManager.generateDetailedSupplementaryReview(sessionId, difficulty);
+    
+    res.json({
+      success: true,
+      review_session: reviewSession
+    });
+  } catch (error) {
+    console.error('Error generating detailed supplementary review session:', error);
+    res.status(500).json({ error: 'Failed to generate detailed supplementary review session' });
+  }
+});
+
 // Get review session
 router.get('/sessions/:sessionId/review/:reviewId', async (req, res) => {
   try {
@@ -559,6 +581,137 @@ router.post('/test/backup-question', async (req, res) => {
   } catch (error) {
     console.error('Error testing backup question generation:', error);
     res.status(500).json({ error: 'Failed to generate backup questions' });
+  }
+});
+
+// Debug endpoint to check question database
+router.get('/debug/questions', async (req, res) => {
+  try {
+    const { difficulty, lesson_id } = req.query;
+    
+    const questionDB = adaptiveLearningManager['questionDB'];
+    const allQuestions = questionDB.getAllQuestions();
+    
+    let filteredQuestions = allQuestions;
+    
+    if (difficulty) {
+      filteredQuestions = filteredQuestions.filter(q => q.difficulty === difficulty);
+    }
+    
+    if (lesson_id) {
+      filteredQuestions = filteredQuestions.filter(q => q.lesson_id === parseInt(lesson_id as string));
+    }
+    
+    // Group by lesson and difficulty
+    const stats: { [key: string]: { total: number; withChoices: number; withoutChoices: number } } = {};
+    
+    filteredQuestions.forEach(q => {
+      const key = `Lesson ${q.lesson_id} - ${q.difficulty}`;
+      if (!stats[key]) {
+        stats[key] = { total: 0, withChoices: 0, withoutChoices: 0 };
+      }
+      stats[key].total++;
+      if (q.choices && q.choices.length >= 4) {
+        stats[key].withChoices++;
+      } else {
+        stats[key].withoutChoices++;
+      }
+    });
+    
+    res.json({
+      success: true,
+      total_questions: allQuestions.length,
+      filtered_questions: filteredQuestions.length,
+      stats: stats,
+      sample_questions: filteredQuestions.slice(0, 5).map(q => ({
+        id: q.id,
+        lesson_id: q.lesson_id,
+        difficulty: q.difficulty,
+        has_choices: q.choices && q.choices.length >= 4,
+        choices_count: q.choices?.length || 0,
+        content_preview: q.content?.substring(0, 100) + '...'
+      }))
+    });
+  } catch (error) {
+    console.error('Error getting question database debug info:', error);
+    res.status(500).json({ error: 'Failed to get question database info' });
+  }
+});
+
+// Debug endpoint to check session data
+router.get('/debug/session/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = adaptiveLearningManager.getSession(sessionId);
+    
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    // Analyze answers by difficulty
+    const answersByDifficulty = session.answers_by_difficulty;
+    const usedBundles = session.used_bundles;
+    const supplementaryBundles = session.supplementary_bundles;
+    
+    // Create detailed analysis
+    const analysis: any = {
+      session_id: sessionId,
+      current_state: session.current_state,
+      current_difficulty: session.current_difficulty,
+      total_answers: session.answers.length,
+      answers_by_difficulty: {},
+      bundles_info: {},
+      supplementary_info: {}
+    };
+    
+    // Analyze each difficulty
+    for (const [difficulty, answers] of Object.entries(answersByDifficulty)) {
+      const bundle = usedBundles[difficulty] || [];
+      const correctAnswers = answers.filter(a => a.is_correct).length;
+      
+      analysis.answers_by_difficulty[difficulty] = {
+        total_answers: answers.length,
+        correct_answers: correctAnswers,
+        accuracy: answers.length > 0 ? (correctAnswers / answers.length) * 100 : 0,
+        bundle_size: bundle.length,
+        answers_detail: answers.map(a => ({
+          question_id: a.question_id,
+          is_correct: a.is_correct,
+          time_spent: a.time_spent,
+          found_in_bundle: bundle.some(q => q.id === a.question_id)
+        }))
+      };
+      
+      analysis.bundles_info[difficulty] = {
+        bundle_size: bundle.length,
+        questions: bundle.map(q => ({
+          id: q.id,
+          lesson_id: q.lesson_id,
+          difficulty: q.difficulty,
+          has_choices: q.choices && q.choices.length >= 4
+        }))
+      };
+    }
+    
+    // Analyze supplementary bundles
+    for (const [key, suppBundle] of Object.entries(supplementaryBundles)) {
+      analysis.supplementary_info[key] = {
+        bundle_size: suppBundle.length,
+        questions: suppBundle.map(q => ({
+          id: q.id,
+          lesson_id: q.lesson_id,
+          difficulty: q.difficulty
+        }))
+      };
+    }
+    
+    res.json({
+      success: true,
+      analysis: analysis
+    });
+  } catch (error) {
+    console.error('Error getting session debug info:', error);
+    res.status(500).json({ error: 'Failed to get session debug info' });
   }
 });
 

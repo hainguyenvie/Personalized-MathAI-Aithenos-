@@ -97,9 +97,9 @@ export interface ReviewSession {
 
 export type SessionState =
   | 'INIT'
-  | 'BUNDLE_N' | 'EVAL_N' | 'SUPP_N' | 'TUTOR_N' | 'REVIEW_N' | 'REVIEW_FAIL_N' | 'REVIEW_SUPP_N'
-  | 'BUNDLE_H' | 'EVAL_H' | 'SUPP_H' | 'TUTOR_H' | 'REVIEW_H' | 'REVIEW_FAIL_H' | 'REVIEW_SUPP_H'
-  | 'BUNDLE_V' | 'EVAL_V' | 'SUPP_V' | 'TUTOR_V' | 'REVIEW_V' | 'REVIEW_FAIL_V' | 'REVIEW_SUPP_V'
+  | 'BUNDLE_N' | 'EVAL_N' | 'SUPP_N' | 'TUTOR_N' | 'REVIEW_N' | 'REVIEW_FAIL_N' | 'REVIEW_SUPP_N' | 'REVIEW_SUPP_FAIL_N'
+  | 'BUNDLE_H' | 'EVAL_H' | 'SUPP_H' | 'TUTOR_H' | 'REVIEW_H' | 'REVIEW_FAIL_H' | 'REVIEW_SUPP_H' | 'REVIEW_SUPP_FAIL_H'
+  | 'BUNDLE_V' | 'EVAL_V' | 'SUPP_V' | 'TUTOR_V' | 'REVIEW_V' | 'REVIEW_FAIL_V' | 'REVIEW_SUPP_V' | 'REVIEW_SUPP_FAIL_V'
   | 'END';
 
 // New state flow logic:
@@ -199,13 +199,19 @@ export class AIQuestionGenerator {
         return this.generateFallbackQuestions(originalQuestion, count);
       }
 
+      // Validate original question
+      if (!originalQuestion.content || !originalQuestion.choices || originalQuestion.choices.length === 0) {
+        console.log('Original question is invalid, using fallback questions');
+        return this.generateFallbackQuestions(originalQuestion, count);
+      }
+
       const prompt = `
 Tạo ${count} câu hỏi isomorphic (cùng dạng, cùng độ khó) dựa trên câu hỏi mẫu sau:
 
 Câu hỏi gốc:
 - Nội dung: ${originalQuestion.content}
 - Đáp án đúng: ${originalQuestion.choices[originalQuestion.correct_answer]}
-- Giải thích: ${originalQuestion.explanation}
+- Giải thích: ${originalQuestion.explanation || 'Không có giải thích'}
 - Độ khó: ${originalQuestion.difficulty_name}
 - Bài: ${originalQuestion.lesson_id}
 
@@ -213,7 +219,8 @@ Yêu cầu:
 1. Giữ nguyên dạng bài và độ khó
 2. Thay đổi số liệu, biến số, hoặc ngữ cảnh
 3. Đảm bảo độ khó tương đương
-4. Trả về dưới dạng JSON với format:
+4. Mỗi câu hỏi phải có đầy đủ 4 đáp án A, B, C, D
+5. Trả về dưới dạng JSON với format:
 {
   "questions": [
     {
@@ -223,7 +230,7 @@ Yêu cầu:
       "difficulty_name": "${originalQuestion.difficulty_name}",
       "content": "Nội dung câu hỏi mới",
       "type": "multiple_choice",
-      "choices": ["A", "B", "C", "D"],
+      "choices": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
       "correct_answer": 0,
       "explanation": "Giải thích chi tiết"
     }
@@ -236,7 +243,7 @@ Yêu cầu:
         messages: [
           {
             role: "system",
-            content: "Bạn là chuyên gia tạo câu hỏi toán học. Hãy tạo các câu hỏi isomorphic chất lượng cao, giữ nguyên độ khó và dạng bài nhưng thay đổi số liệu."
+            content: "Bạn là chuyên gia tạo câu hỏi toán học. Hãy tạo các câu hỏi isomorphic chất lượng cao, giữ nguyên độ khó và dạng bài nhưng thay đổi số liệu. Đảm bảo mỗi câu hỏi có đầy đủ 4 đáp án."
           },
           {
             role: "user",
@@ -248,7 +255,27 @@ Yêu cầu:
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"questions": []}');
-      return result.questions || [];
+      const questions = result.questions || [];
+      
+      // Validate generated questions
+      const validQuestions = questions.filter((q: any) => 
+        q.content && 
+        q.choices && 
+        Array.isArray(q.choices) && 
+        q.choices.length === 4 &&
+        typeof q.correct_answer === 'number' &&
+        q.correct_answer >= 0 &&
+        q.correct_answer < 4
+      );
+      
+      console.log(`Generated ${questions.length} questions, ${validQuestions.length} are valid`);
+      
+      if (validQuestions.length === 0) {
+        console.log('No valid questions generated, using fallback');
+        return this.generateFallbackQuestions(originalQuestion, count);
+      }
+      
+      return validQuestions;
     } catch (error) {
       console.error('Error generating isomorphic questions:', error);
       return this.generateFallbackQuestions(originalQuestion, count);
@@ -258,6 +285,12 @@ Yêu cầu:
   // Fallback method when OpenAI is not available
   private generateFallbackQuestions(originalQuestion: Question, count: number): Question[] {
     const fallbackQuestions: Question[] = [];
+    
+    // Ensure we have valid choices
+    const baseChoices = originalQuestion.choices && originalQuestion.choices.length >= 4 
+      ? originalQuestion.choices 
+      : ['A', 'B', 'C', 'D'];
+    
     for (let i = 0; i < Math.min(count, 3); i++) {
       fallbackQuestions.push({
         id: `fallback_${originalQuestion.id}_${i + 1}`,
@@ -266,45 +299,60 @@ Yêu cầu:
         difficulty_name: originalQuestion.difficulty_name,
         content: `${originalQuestion.content} (Câu hỏi tương tự ${i + 1})`,
         type: 'multiple_choice',
-        choices: originalQuestion.choices || ['A', 'B', 'C', 'D'],
-        correct_answer: originalQuestion.correct_answer,
+        choices: baseChoices,
+        correct_answer: originalQuestion.correct_answer || 0,
         explanation: originalQuestion.explanation || 'Giải thích sẽ được cập nhật'
       });
     }
+    
+    console.log(`Generated ${fallbackQuestions.length} fallback questions`);
     return fallbackQuestions;
   }
 
   async generateSupplementaryQuestions(weakLessons: number[], difficulty: string, problemTypes: string[], excludeIds: Set<string>): Promise<Question[]> {
     try {
+      console.log(`Generating supplementary questions for lessons: ${weakLessons.join(', ')}, difficulty: ${difficulty}`);
+      
       // Get sample questions from weak lessons
       const sampleQuestions = this.questionDB.getAvailableQuestions(difficulty, weakLessons, excludeIds);
+      console.log(`Found ${sampleQuestions.length} sample questions`);
       
       if (sampleQuestions.length === 0) {
+        console.log('No sample questions found, trying to get any questions for these lessons');
+        // Try to get any questions for these lessons, regardless of difficulty
+        for (const lessonId of weakLessons) {
+          const anyQuestions = this.questionDB.getQuestionsByLesson(lessonId);
+          if (anyQuestions.length > 0) {
+            console.log(`Found ${anyQuestions.length} questions for lesson ${lessonId} (any difficulty)`);
+            // Use the first question as sample
+            const sampleQuestion = anyQuestions[0]!;
+            const generated = await this.generateIsomorphicQuestions(sampleQuestion, 2);
+            if (generated.length > 0) {
+              return generated;
+            }
+          }
+        }
         return [];
       }
-
-      // Group by problem type if available
-      const questionsByType = new Map<string, Question[]>();
-      sampleQuestions.forEach(q => {
-        const type = q.problem_type || 'general';
-        if (!questionsByType.has(type)) {
-          questionsByType.set(type, []);
-        }
-        questionsByType.get(type)!.push(q);
-      });
 
       // Generate 2 supplementary questions for each weak lesson
       const supplementaryQuestions: Question[] = [];
       
       for (const lessonId of weakLessons) {
         const lessonQuestions = sampleQuestions.filter(q => q.lesson_id === lessonId);
+        console.log(`Lesson ${lessonId}: ${lessonQuestions.length} questions available`);
+        
         if (lessonQuestions.length > 0) {
           const sampleQuestion = lessonQuestions[0]!;
+          console.log(`Using sample question for lesson ${lessonId}:`, sampleQuestion.id);
+          
           const generated = await this.generateIsomorphicQuestions(sampleQuestion, 2);
+          console.log(`Generated ${generated.length} questions for lesson ${lessonId}`);
           supplementaryQuestions.push(...generated);
         }
       }
 
+      console.log(`Total supplementary questions generated: ${supplementaryQuestions.length}`);
       return supplementaryQuestions;
     } catch (error) {
       console.error('Error generating supplementary questions:', error);
@@ -530,15 +578,37 @@ export class AdaptiveLearningManager {
     }
 
     const supplementaryQuestions: Question[] = [];
+    const weakLessons = new Set<number>();
+
+    console.log(`Generating supplementary questions for ${wrongAnswers.length} wrong answers`);
 
     // Generate 2 supplementary questions for each wrong answer
     for (const wrongAnswer of wrongAnswers) {
       const originalQuestion = session.current_bundle.find(q => q.id === wrongAnswer.question_id);
+      console.log(`Processing wrong answer ${wrongAnswer.question_id}, found original question:`, !!originalQuestion);
+      
       if (originalQuestion) {
+        weakLessons.add(originalQuestion.lesson_id);
+        
         try {
           // Generate 2 isomorphic questions based on the wrong answer
           const generatedQuestions = await this.aiGenerator.generateIsomorphicQuestions(originalQuestion, 2);
-          supplementaryQuestions.push(...generatedQuestions);
+          console.log(`Generated ${generatedQuestions.length} isomorphic questions for ${wrongAnswer.question_id}`);
+          
+          if (generatedQuestions.length > 0) {
+            supplementaryQuestions.push(...generatedQuestions);
+          } else {
+            console.log(`No isomorphic questions generated, trying fallback for ${wrongAnswer.question_id}`);
+            // Fallback: generate topic-based questions
+            const topicQuestions = await this.aiGenerator.generateSupplementaryQuestions(
+              [originalQuestion.lesson_id],
+              difficulty,
+              [],
+              session.asked_question_ids
+            );
+            console.log(`Fallback generated ${topicQuestions.length} topic questions`);
+            supplementaryQuestions.push(...topicQuestions.slice(0, 2));
+          }
         } catch (error) {
           console.error(`Error generating supplementary questions for ${wrongAnswer.question_id}:`, error);
           // Fallback: generate topic-based questions
@@ -548,8 +618,58 @@ export class AdaptiveLearningManager {
             [],
             session.asked_question_ids
           );
+          console.log(`Error fallback generated ${topicQuestions.length} topic questions`);
           supplementaryQuestions.push(...topicQuestions.slice(0, 2));
         }
+      } else {
+        console.error(`Original question not found for ${wrongAnswer.question_id}`);
+      }
+    }
+
+    // If we still don't have enough questions, try to generate from weak lessons
+    if (supplementaryQuestions.length < wrongAnswers.length * 2) {
+      console.log(`Not enough supplementary questions (${supplementaryQuestions.length}), generating from weak lessons:`, Array.from(weakLessons));
+      
+      try {
+        const additionalQuestions = await this.aiGenerator.generateSupplementaryQuestions(
+          Array.from(weakLessons),
+          difficulty,
+          [],
+          session.asked_question_ids
+        );
+        console.log(`Generated ${additionalQuestions.length} additional questions from weak lessons`);
+        supplementaryQuestions.push(...additionalQuestions);
+      } catch (error) {
+        console.error('Error generating additional questions from weak lessons:', error);
+      }
+    }
+
+    // Final fallback: use backup question generator
+    if (supplementaryQuestions.length === 0) {
+      console.log('No supplementary questions generated, using backup generator');
+      try {
+        const { questionBackupGenerator } = await import('./question-backup');
+        for (const lessonId of weakLessons) {
+          const backupQuestions = await questionBackupGenerator.generateTopicQuestions(lessonId, difficulty, 2);
+          console.log(`Backup generator created ${backupQuestions.length} questions for lesson ${lessonId}`);
+          
+          // Convert BackupQuestion to Question
+          const convertedQuestions: Question[] = backupQuestions.map(q => ({
+            id: q.id,
+            lesson_id: q.lesson_id,
+            difficulty: q.difficulty as 'N' | 'H' | 'V',
+            difficulty_name: q.difficulty === 'N' ? 'Nhận biết' : q.difficulty === 'H' ? 'Thông hiểu' : 'Vận dụng',
+            content: q.content,
+            type: 'multiple_choice',
+            choices: q.choices,
+            correct_answer: q.correct_answer,
+            explanation: q.explanation
+          }));
+          
+          supplementaryQuestions.push(...convertedQuestions);
+        }
+      } catch (error) {
+        console.error('Error using backup generator:', error);
       }
     }
 
@@ -557,7 +677,7 @@ export class AdaptiveLearningManager {
     session.supplementary_bundles[bundleKey] = supplementaryQuestions;
     supplementaryQuestions.forEach(q => session.asked_question_ids.add(q.id));
 
-    console.log(`Generated ${supplementaryQuestions.length} supplementary questions for ${wrongAnswers.length} wrong answers`);
+    console.log(`Final result: Generated ${supplementaryQuestions.length} supplementary questions for ${wrongAnswers.length} wrong answers`);
     return supplementaryQuestions;
   }
 
@@ -620,9 +740,12 @@ export class AdaptiveLearningManager {
         const correctSuppAnswers = suppEvaluation.score;
         const suppPercentage = (correctSuppAnswers / totalSuppQuestions) * 100;
         
+        // Always go to review after supplementary questions
+        needsReview = true;
+        wrongAnswers = suppEvaluation.wrongAnswers;
+        
         if (suppPercentage >= 80) {
-          // Passed supplementary (80%+), move to review then next difficulty
-          needsReview = true;
+          // Passed supplementary (80%+), move to success review then next difficulty
           switch (session.current_difficulty) {
             case 'N':
               session.current_state = 'REVIEW_SUPP_N';
@@ -635,10 +758,18 @@ export class AdaptiveLearningManager {
               break;
           }
         } else {
-          // Failed supplementary (<80%), need tutor
-          needsTutor = true;
-          wrongAnswers = suppEvaluation.wrongAnswers;
-          session.current_state = session.current_state.replace('SUPP', 'TUTOR') as SessionState;
+          // Failed supplementary (<80%), move to detailed review then next difficulty
+          switch (session.current_difficulty) {
+            case 'N':
+              session.current_state = 'REVIEW_SUPP_FAIL_N';
+              break;
+            case 'H':
+              session.current_state = 'REVIEW_SUPP_FAIL_H';
+              break;
+            case 'V':
+              session.current_state = 'REVIEW_SUPP_FAIL_V';
+              break;
+          }
         }
         break;
 
@@ -681,13 +812,21 @@ export class AdaptiveLearningManager {
       case 'REVIEW_SUPP_N':
       case 'REVIEW_SUPP_H':
       case 'REVIEW_SUPP_V':
-        // Review supplementary state - move to next difficulty after review
-        const reviewSuppDifficulty = session.current_difficulty;
-        if (reviewSuppDifficulty === 'N') {
+        // Review supplementary success state - wait for frontend to call continueAfterReview
+        // Don't change difficulty yet, just indicate that review is needed
+        needsReview = true;
+        break;
+
+      case 'REVIEW_SUPP_FAIL_N':
+      case 'REVIEW_SUPP_FAIL_H':
+      case 'REVIEW_SUPP_FAIL_V':
+        // Review supplementary fail state - show detailed review then move to next difficulty
+        const reviewSuppFailDifficulty = session.current_difficulty;
+        if (reviewSuppFailDifficulty === 'N') {
           session.current_state = 'BUNDLE_H';
           session.current_difficulty = 'H';
           nextBundle = await this.generateInitialBundle('H', session.asked_question_ids);
-        } else if (reviewSuppDifficulty === 'H') {
+        } else if (reviewSuppFailDifficulty === 'H') {
           session.current_state = 'BUNDLE_V';
           session.current_difficulty = 'V';
           nextBundle = await this.generateInitialBundle('V', session.asked_question_ids);
@@ -739,10 +878,234 @@ export class AdaptiveLearningManager {
     session.current_state = `BUNDLE_${difficulty}` as SessionState;
     
     // Save bundle for review purposes
-    session.used_bundles[difficulty] = bundle;
+    session.used_bundles[difficulty] = [...bundle]; // Create a copy
+    console.log(`Saved bundle for difficulty ${difficulty}: ${bundle.length} questions`);
 
     this.sessions.set(sessionId, session);
     return bundle;
+  }
+
+  // Generate detailed review session for supplementary questions (when failed)
+  async generateDetailedSupplementaryReview(sessionId: string, difficulty: 'N' | 'H' | 'V'): Promise<ReviewSession> {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+
+    // Get supplementary questions answers
+    const supplementaryAnswers = session.answers_by_difficulty[difficulty] || [];
+    const wrongAnswers = supplementaryAnswers.filter(a => !a.is_correct);
+
+    // Get wrong questions from supplementary bundle
+    const wrongQuestions = wrongAnswers.map(answer => {
+      return session.current_bundle.find(q => q.id === answer.question_id);
+    }).filter(q => q !== undefined);
+
+    // Generate detailed explanations for wrong questions
+    const detailedExplanations = await this.generateDetailedExplanations(wrongQuestions);
+
+    // Create lesson summary focusing on weak areas
+    const lesson_summary: { [lesson: number]: any } = {};
+    const topicMap: { [key: number]: string } = {
+      1: "Tính đơn điệu và cực trị của hàm số",
+      2: "Giá trị lớn nhất - nhỏ nhất của hàm số", 
+      3: "Đường tiệm cận của đồ thị hàm số",
+      4: "Khảo sát sự biến thiên và vẽ đồ thị hàm số",
+      5: "Ứng dụng đạo hàm và khảo sát hàm số để giải quyết bài toán thực tế"
+    };
+
+    // Group wrong answers by lesson
+    const wrongAnswersByLesson: { [lesson: number]: any[] } = {};
+    wrongAnswers.forEach(answer => {
+      const question = session.current_bundle.find(q => q.id === answer.question_id);
+      if (question) {
+        if (!wrongAnswersByLesson[question.lesson_id]) {
+          wrongAnswersByLesson[question.lesson_id] = [];
+        }
+        wrongAnswersByLesson[question.lesson_id].push(answer);
+      }
+    });
+
+    // Create detailed lesson summary
+    for (const [lesson, answers] of Object.entries(wrongAnswersByLesson)) {
+      const lessonNum = parseInt(lesson);
+      lesson_summary[lessonNum] = {
+        total_questions: answers.length,
+        correct_answers: 0,
+        accuracy: 0,
+        weak_topics: [topicMap[lessonNum]],
+        strong_topics: [],
+        detailed_explanations: detailedExplanations.filter(exp => exp.lesson_id === lessonNum)
+      };
+    }
+
+    // Calculate overall performance
+    const totalQuestions = supplementaryAnswers.length;
+    const correctAnswers = supplementaryAnswers.filter(a => a.is_correct).length;
+    const totalTimeSpent = supplementaryAnswers.reduce((sum, a) => sum + a.time_spent, 0);
+
+    // Generate recommendations for detailed review
+    const recommendations = await this.generateDetailedReviewRecommendations(lesson_summary, difficulty);
+    const overallAccuracy = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+    const nextDifficultyPreparation = await this.generateNextDifficultyPreparation(difficulty, overallAccuracy);
+
+    const reviewSession: ReviewSession = {
+      id: `detailed_review_${sessionId}_${difficulty}_${Date.now()}`,
+      difficulty,
+      lesson_summary,
+      overall_performance: {
+        total_questions: totalQuestions,
+        correct_answers: correctAnswers,
+        accuracy: overallAccuracy,
+        time_spent: totalTimeSpent
+      },
+      recommendations,
+      next_difficulty_preparation: nextDifficultyPreparation,
+      created_at: new Date()
+    };
+
+    // Store review session
+    session.review_sessions.push(reviewSession);
+    this.sessions.set(sessionId, session);
+
+    return reviewSession;
+  }
+
+  // Generate detailed explanations for wrong questions
+  private async generateDetailedExplanations(wrongQuestions: any[]): Promise<any[]> {
+    try {
+      if (!openaiEnabled || !openai) {
+        return wrongQuestions.map(q => ({
+          question_id: q.id,
+          lesson_id: q.lesson_id,
+          content: q.content,
+          explanation: q.explanation || "Giải thích sẽ được cập nhật",
+          theory_summary: "Lý thuyết liên quan sẽ được cập nhật",
+          step_by_step_solution: "Lời giải từng bước sẽ được cập nhật"
+        }));
+      }
+
+      const explanations = [];
+      for (const question of wrongQuestions) {
+        const prompt = `
+Tạo giải thích chi tiết cho câu hỏi toán học lớp 12:
+
+CÂU HỎI: ${question.content}
+ĐÁP ÁN ĐÚNG: ${question.choices[question.correct_answer]}
+GIẢI THÍCH HIỆN TẠI: ${question.explanation}
+BÀI: ${question.lesson_id}
+ĐỘ KHÓ: ${question.difficulty}
+
+YÊU CẦU:
+1. Tóm tắt lý thuyết liên quan (ngắn gọn, dễ hiểu)
+2. Giải từng bước chi tiết với giải thích tại sao làm như vậy
+3. Chỉ ra các lỗi thường gặp và cách tránh
+4. Đưa ra bài tập tương tự để luyện tập
+
+Trả về JSON:
+{
+  "theory_summary": "Tóm tắt lý thuyết",
+  "step_by_step_solution": "Lời giải từng bước chi tiết",
+  "common_mistakes": "Các lỗi thường gặp",
+  "similar_exercises": "Bài tập tương tự"
+}
+`;
+
+        const response = await openai!.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: "Bạn là giáo viên toán học có kinh nghiệm. Hãy tạo giải thích chi tiết và dễ hiểu cho học sinh lớp 12."
+            },
+            { role: "user", content: prompt }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.7
+        });
+
+        const result = JSON.parse(response.choices[0].message.content || '{}');
+        
+        explanations.push({
+          question_id: question.id,
+          lesson_id: question.lesson_id,
+          content: question.content,
+          explanation: question.explanation,
+          theory_summary: result.theory_summary || "Lý thuyết liên quan",
+          step_by_step_solution: result.step_by_step_solution || "Lời giải từng bước",
+          common_mistakes: result.common_mistakes || "Các lỗi thường gặp",
+          similar_exercises: result.similar_exercises || "Bài tập tương tự"
+        });
+      }
+
+      return explanations;
+    } catch (error) {
+      console.error('Error generating detailed explanations:', error);
+      return wrongQuestions.map(q => ({
+        question_id: q.id,
+        lesson_id: q.lesson_id,
+        content: q.content,
+        explanation: q.explanation || "Giải thích sẽ được cập nhật",
+        theory_summary: "Lý thuyết liên quan sẽ được cập nhật",
+        step_by_step_solution: "Lời giải từng bước sẽ được cập nhật"
+      }));
+    }
+  }
+
+  // Generate detailed review recommendations
+  private async generateDetailedReviewRecommendations(lesson_summary: any, difficulty: string): Promise<string[]> {
+    try {
+      if (!openaiEnabled || !openai) {
+        return [
+          "Hãy xem lại lý thuyết và lời giải chi tiết cho các câu sai",
+          "Làm thêm bài tập tương tự để củng cố kiến thức",
+          "Chú ý các lỗi thường gặp để tránh mắc phải",
+          "Chuẩn bị tốt cho độ khó tiếp theo"
+        ];
+      }
+
+      const prompt = `
+Đưa ra khuyến nghị chi tiết cho học sinh sau khi làm sai nhiều câu trong bài tập bổ sung:
+
+KẾT QUẢ BÀI TẬP BỔ SUNG:
+${JSON.stringify(lesson_summary, null, 2)}
+
+ĐỘ KHÓ HIỆN TẠI: ${difficulty === 'N' ? 'Nhận biết' : difficulty === 'H' ? 'Thông hiểu' : 'Vận dụng'}
+
+YÊU CẦU:
+1. Đưa ra 4-5 khuyến nghị cụ thể để cải thiện
+2. Tập trung vào việc xem lại lý thuyết và lời giải chi tiết
+3. Động viên và tích cực
+4. Hướng dẫn cách học hiệu quả cho độ khó tiếp theo
+
+Trả về JSON:
+{
+  "recommendations": ["Khuyến nghị 1", "Khuyến nghị 2", "Khuyến nghị 3", "Khuyến nghị 4"]
+}
+`;
+
+      const response = await openai!.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "Bạn là giáo viên toán học có kinh nghiệm. Hãy đưa ra khuyến nghị học tập tích cực và cụ thể cho học sinh."
+          },
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{"recommendations": []}');
+      return result.recommendations || [];
+    } catch (error) {
+      console.error('Error generating detailed review recommendations:', error);
+      return [
+        "Hãy xem lại lý thuyết và lời giải chi tiết cho các câu sai",
+        "Làm thêm bài tập tương tự để củng cố kiến thức",
+        "Chú ý các lỗi thường gặp để tránh mắc phải",
+        "Chuẩn bị tốt cho độ khó tiếp theo"
+      ];
+    }
   }
 
   // Generate review session for current difficulty
@@ -765,19 +1128,47 @@ export class AdaptiveLearningManager {
 
     // Group answers by lesson
     for (const answer of difficultyAnswers) {
-      // Find the question in the used bundle for this difficulty
-      const bundle = session.used_bundles[difficulty];
-      const question = bundle?.find(q => q.id === answer.question_id);
+      let question = null;
+      
+      // Try to find question in multiple sources
+      // 1. Current bundle
+      question = session.current_bundle.find(q => q.id === answer.question_id);
+      
+      // 2. Used bundles for this difficulty
+      if (!question) {
+        const bundle = session.used_bundles[difficulty];
+        question = bundle?.find(q => q.id === answer.question_id);
+      }
+      
+      // 3. Supplementary bundles
+      if (!question) {
+        for (const [key, suppBundle] of Object.entries(session.supplementary_bundles)) {
+          question = suppBundle.find(q => q.id === answer.question_id);
+          if (question) break;
+        }
+      }
+      
+      // 4. All answers from session (fallback)
+      if (!question) {
+        // Try to get lesson_id from answer metadata or use a default
+        const lessonId = answer.question_id ? parseInt(answer.question_id.split('_')[1]) || 1 : 1;
+        question = { lesson_id: lessonId, difficulty: difficulty };
+      }
       
       if (question) {
-        if (!lessonStats[question.lesson_id]) {
-          lessonStats[question.lesson_id] = { total: 0, correct: 0, time_spent: 0 };
+        const lessonId = question.lesson_id;
+        if (!lessonStats[lessonId]) {
+          lessonStats[lessonId] = { total: 0, correct: 0, time_spent: 0 };
         }
-        lessonStats[question.lesson_id].total++;
-        lessonStats[question.lesson_id].time_spent += answer.time_spent;
+        lessonStats[lessonId].total++;
+        lessonStats[lessonId].time_spent += answer.time_spent;
         if (answer.is_correct) {
-          lessonStats[question.lesson_id].correct++;
+          lessonStats[lessonId].correct++;
         }
+        
+        console.log(`Answer ${answer.question_id}: lesson ${lessonId}, correct: ${answer.is_correct}`);
+      } else {
+        console.error(`Question not found for answer ${answer.question_id}`);
       }
     }
 
@@ -979,10 +1370,18 @@ export class AdaptiveLearningManager {
       session.current_state = 'BUNDLE_H';
       session.current_difficulty = 'H';
       nextBundle = await this.generateInitialBundle('H', session.asked_question_ids);
+      // Save the new bundle
+      session.used_bundles['H'] = [...nextBundle];
+      session.current_bundle = nextBundle;
+      session.current_question_index = 0;
     } else if (difficulty === 'H') {
       session.current_state = 'BUNDLE_V';
       session.current_difficulty = 'V';
       nextBundle = await this.generateInitialBundle('V', session.asked_question_ids);
+      // Save the new bundle
+      session.used_bundles['V'] = [...nextBundle];
+      session.current_bundle = nextBundle;
+      session.current_question_index = 0;
     } else {
       session.current_state = 'END';
     }
