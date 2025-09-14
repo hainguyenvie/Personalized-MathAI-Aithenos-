@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Crown, Home, ClipboardCheck, PlayCircle, Trophy, Medal, Coins, LogOut, User, FileText } from "lucide-react";
+import { Crown, Home, ClipboardCheck, PlayCircle, Trophy, Medal, Coins, LogOut, User, FileText, Brain } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { mockUser } from "@/data/mock-data";
@@ -13,6 +13,7 @@ export default function Navigation() {
     { path: "/", label: "Trang chủ", icon: Home, view: "dashboard" },
     { path: "/assessment", label: "Đánh giá", icon: ClipboardCheck, view: "assessment" },
     { path: "/adaptive-test", label: "Kiểm tra", icon: FileText, view: "adaptive-test" },
+    { path: "/adaptive-learning", label: "Học thích ứng", icon: Brain, view: "adaptive-learning" },
     { path: "/learning", label: "Học tập", icon: PlayCircle, view: "learning" },
     { path: "/gameshow", label: "Game Show", icon: Trophy, view: "gameshow" },
     { path: "/leaderboard", label: "Xếp hạng", icon: Medal, view: "leaderboard" },

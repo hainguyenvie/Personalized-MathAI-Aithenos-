@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* KaTeX Math Rendering Styles */
+.math-content {
+  line-height: 1.6;
+}
+
+.math-content .katex {
+  font-size: 1.1em;
+}
+
+.math-content .katex-display {
+  margin: 1em 0;
+  text-align: center;
+}
+
+.math-content .katex-display .katex {
+  font-size: 1.2em;
+}
+
 :root {
   --background: hsl(0, 0%, 100%);
   --foreground: hsl(20, 14.3%, 4.1%);
