@@ -21,6 +21,7 @@ import LearningRoadmap from "@/pages/learning-roadmap";
 import GameShow from "@/pages/gameshow";
 import Leaderboard from "@/pages/leaderboard";
 import DiagnosticReport from "@/pages/diagnostic-report";
+import AuthCallback from "@/pages/auth-callback";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/gameshow" component={GameShow} />
       <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/diagnostic-report" component={DiagnosticReport} />
+      <Route path="/auth/callback" component={AuthCallback} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>
