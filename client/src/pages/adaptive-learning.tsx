@@ -106,7 +106,7 @@ export default function AdaptiveLearning() {
   const initializeSession = async (studentName: string, grade: string) => {
     try {
       setLoading(true);
-      const response = await fetch('/api/adaptive/sessions', {
+      const response = await fetch('/api/adaptive-optimized/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ student_name: studentName, grade })
@@ -130,7 +130,7 @@ export default function AdaptiveLearning() {
   const startBundle = async (sessionId: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/adaptive/sessions/${sessionId}/start`, {
+      const response = await fetch(`/api/adaptive-optimized/sessions/${sessionId}/start`, {
         method: 'POST'
       });
       
@@ -184,7 +184,7 @@ export default function AdaptiveLearning() {
   const submitBundle = async (sessionId: string, bundleAnswers: typeof answers) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/adaptive/sessions/${sessionId}/answers`, {
+      const response = await fetch(`/api/adaptive-optimized/sessions/${sessionId}/answers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers: bundleAnswers })
@@ -236,7 +236,7 @@ export default function AdaptiveLearning() {
       const wrongAnswer = wrongAnswers.find(a => !a.is_correct) || wrongAnswers[0];
       if (!wrongAnswer) return;
 
-      const response = await fetch(`/api/adaptive/sessions/${sessionId}/tutor/start`, {
+      const response = await fetch(`/api/adaptive-optimized/sessions/${sessionId}/tutor/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -258,7 +258,7 @@ export default function AdaptiveLearning() {
   // Get tutor hint
   const getTutorHint = async (sessionId: string, tutorSessionId: string) => {
     try {
-      const response = await fetch(`/api/adaptive/sessions/${sessionId}/tutor/${tutorSessionId}/hint`, {
+      const response = await fetch(`/api/adaptive-optimized/sessions/${sessionId}/tutor/${tutorSessionId}/hint`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ student_response: studentResponse })
@@ -279,7 +279,7 @@ export default function AdaptiveLearning() {
   const submitTutorResponse = async () => {
     if (!session || !tutorSession) return;
 
-    const response = await fetch(`/api/adaptive/sessions/${session.id}/tutor/${tutorSession.id}/check`, {
+    const response = await fetch(`/api/adaptive-optimized/sessions/${session.id}/tutor/${tutorSession.id}/check`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ student_response: studentResponse })
@@ -316,7 +316,7 @@ export default function AdaptiveLearning() {
       }
 
       // Start next difficulty bundle
-      const response = await fetch(`/api/adaptive/sessions/${sessionId}/start`, {
+      const response = await fetch(`/api/adaptive-optimized/sessions/${sessionId}/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ difficulty: nextDifficulty })
@@ -341,7 +341,7 @@ export default function AdaptiveLearning() {
   const generateReport = async (sessionId: string) => {
     try {
       console.log('Generating report for session:', sessionId);
-      const response = await fetch(`/api/adaptive/sessions/${sessionId}/report`);
+      const response = await fetch(`/api/adaptive-optimized/sessions/${sessionId}/report`);
       console.log('Report API response status:', response.status);
       
       const data = await response.json();
@@ -364,7 +364,7 @@ export default function AdaptiveLearning() {
   // Get theory content
   const getTheoryContent = async (lessonId: number) => {
     try {
-      const response = await fetch(`/api/adaptive/theory/${lessonId}/summary`);
+      const response = await fetch(`/api/adaptive-optimized/theory/${lessonId}/summary`);
       const data = await response.json();
       if (data.success) {
         setTheoryContent(data.summary);
@@ -379,7 +379,7 @@ export default function AdaptiveLearning() {
   const showReviewSession = async (sessionId: string, difficulty: string) => {
     try {
       console.log('Generating review session for difficulty:', difficulty);
-      const response = await fetch(`/api/adaptive/sessions/${sessionId}/review`, {
+      const response = await fetch(`/api/adaptive-optimized/sessions/${sessionId}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ difficulty })
@@ -404,7 +404,7 @@ export default function AdaptiveLearning() {
   const showDetailedSupplementaryReview = async (sessionId: string, difficulty: string) => {
     try {
       console.log('Generating detailed supplementary review session for difficulty:', difficulty);
-      const response = await fetch(`/api/adaptive/sessions/${sessionId}/review/detailed-supplementary`, {
+      const response = await fetch(`/api/adaptive-optimized/sessions/${sessionId}/review/detailed-supplementary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ difficulty })
@@ -460,8 +460,8 @@ export default function AdaptiveLearning() {
       
       // Use the appropriate API endpoint
       const apiEndpoint = isSupplementaryReview
-        ? `/api/adaptive/sessions/${session.id}/review/${reviewSession.id}/continue-supplementary`
-        : `/api/adaptive/sessions/${session.id}/review/${reviewSession.id}/continue`;
+        ? `/api/adaptive-optimized/sessions/${session.id}/review/${reviewSession.id}/continue-supplementary`
+        : `/api/adaptive-optimized/sessions/${session.id}/review/${reviewSession.id}/continue`;
       
       console.log('Making API call to:', apiEndpoint);
       console.log('Request body:', { difficulty: targetDifficulty });
@@ -524,10 +524,10 @@ export default function AdaptiveLearning() {
       setLoading(true);
       
       // Use the continueAfterFailReview API
-      console.log('Making API call to:', `/api/adaptive/sessions/${session.id}/review/${reviewSession.id}/continue-fail`);
+      console.log('Making API call to:', `/api/adaptive-optimized/sessions/${session.id}/review/${reviewSession.id}/continue-fail`);
       console.log('Request body:', { difficulty: reviewSession.difficulty });
       
-      const response = await fetch(`/api/adaptive/sessions/${session.id}/review/${reviewSession.id}/continue-fail`, {
+      const response = await fetch(`/api/adaptive-optimized/sessions/${session.id}/review/${reviewSession.id}/continue-fail`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ difficulty: reviewSession.difficulty })

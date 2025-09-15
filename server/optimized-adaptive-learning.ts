@@ -1,0 +1,881 @@
+import { randomUUID } from "crypto";
+import { optimizedQuestionDB, Question } from "./optimized-question-db";
+import { aiCacheManager } from "./ai-cache";
+import { questionBackupGenerator, BackupQuestion } from "./question-backup";
+
+// Types (reusing from original)
+export interface Session {
+  id: string;
+  student_name: string;
+  grade: string;
+  current_state: SessionState;
+  current_difficulty: 'N' | 'H' | 'V';
+  current_bundle: Question[];
+  current_question_index: number;
+  answers: Answer[];
+  answers_by_difficulty: { [difficulty: string]: Answer[] };
+  weak_lessons: number[];
+  asked_question_ids: Set<string>;
+  supplementary_bundles: { [key: string]: Question[] };
+  used_bundles: { [difficulty: string]: Question[] };
+  tutor_sessions: TutorSession[];
+  review_sessions: ReviewSession[];
+  mastery_map: { [lesson: number]: { [difficulty: string]: boolean } };
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface Answer {
+  question_id: string;
+  student_answer: number;
+  is_correct: boolean;
+  time_spent: number;
+  timestamp: Date;
+}
+
+export interface TutorSession {
+  id: string;
+  context: {
+    lesson_id: number;
+    difficulty: 'N' | 'H' | 'V';
+    problem_type: string;
+    student_answer: string;
+    correct_answer: string;
+    question_content: string;
+    explanation: string;
+  };
+  hints_used: any[];
+  current_step: number;
+  max_steps: number;
+  completed: boolean;
+  student_responses: string[];
+  created_at: Date;
+}
+
+export interface ReviewSession {
+  id: string;
+  difficulty: 'N' | 'H' | 'V';
+  lesson_summary: {
+    [lesson: number]: {
+      total_questions: number;
+      correct_answers: number;
+      accuracy: number;
+      weak_topics: string[];
+      strong_topics: string[];
+    }
+  };
+  overall_performance: {
+    total_questions: number;
+    correct_answers: number;
+    accuracy: number;
+    time_spent: number;
+  };
+  recommendations: string[];
+  next_difficulty_preparation: string[];
+  created_at: Date;
+}
+
+export type SessionState =
+  | 'INIT'
+  | 'BUNDLE_N' | 'EVAL_N' | 'SUPP_N' | 'TUTOR_N' | 'REVIEW_N' | 'REVIEW_FAIL_N' | 'REVIEW_SUPP_N' | 'REVIEW_SUPP_FAIL_N'
+  | 'BUNDLE_H' | 'EVAL_H' | 'SUPP_H' | 'TUTOR_H' | 'REVIEW_H' | 'REVIEW_FAIL_H' | 'REVIEW_SUPP_H' | 'REVIEW_SUPP_FAIL_H'
+  | 'BUNDLE_V' | 'EVAL_V' | 'SUPP_V' | 'TUTOR_V' | 'REVIEW_V' | 'REVIEW_FAIL_V' | 'REVIEW_SUPP_V' | 'REVIEW_SUPP_FAIL_V'
+  | 'END';
+
+// Optimized Adaptive Learning Manager
+export class OptimizedAdaptiveLearningManager {
+  private sessions: Map<string, Session> = new Map();
+  private bundleCache: Map<string, Question[]> = new Map();
+  private reviewCache: Map<string, ReviewSession> = new Map();
+
+  createSession(studentName: string, grade: string): Session {
+    const session: Session = {
+      id: randomUUID(),
+      student_name: studentName,
+      grade: grade,
+      current_state: 'INIT',
+      current_difficulty: 'N',
+      current_bundle: [],
+      current_question_index: 0,
+      answers: [],
+      answers_by_difficulty: { 'N': [], 'H': [], 'V': [] },
+      weak_lessons: [],
+      asked_question_ids: new Set(),
+      supplementary_bundles: {},
+      used_bundles: { 'N': [], 'H': [], 'V': [] },
+      tutor_sessions: [],
+      review_sessions: [],
+      mastery_map: {},
+      created_at: new Date(),
+      updated_at: new Date()
+    };
+
+    this.sessions.set(session.id, session);
+    return session;
+  }
+
+  getSession(sessionId: string): Session | undefined {
+    return this.sessions.get(sessionId);
+  }
+
+  updateSession(sessionId: string, updates: Partial<Session>): Session | undefined {
+    const session = this.sessions.get(sessionId);
+    if (!session) return undefined;
+
+    const updatedSession = { ...session, ...updates, updated_at: new Date() };
+    this.sessions.set(sessionId, updatedSession);
+    return updatedSession;
+  }
+
+  // Optimized bundle generation with caching
+  async generateInitialBundle(difficulty: 'N' | 'H' | 'V', excludeIds: Set<string>): Promise<Question[]> {
+    const cacheKey = `bundle_${difficulty}_${Array.from(excludeIds).sort().join(',')}`;
+    
+    // Check cache first
+    const cached = this.bundleCache.get(cacheKey);
+    if (cached) {
+      console.log(`Cache hit for bundle: ${cacheKey}`);
+      return cached;
+    }
+
+    console.log(`Cache miss for bundle: ${cacheKey}`);
+    
+    const bundle: Question[] = [];
+    const lessons = [1, 2, 3, 4, 5];
+
+    // Parallel question generation for each lesson
+    const questionPromises = lessons.map(async (lessonId) => {
+      try {
+        // Try to get existing questions first
+        const availableQuestions = await optimizedQuestionDB.getAvailableQuestions(difficulty, [lessonId], excludeIds);
+        
+        if (availableQuestions.length > 0) {
+          const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+          const randomQuestion = availableQuestions[randomIndex]!;
+          
+          // Check if question has valid choices
+          if (randomQuestion.choices && randomQuestion.choices.length >= 4) {
+            return randomQuestion;
+          }
+        }
+
+        // Generate backup question if needed
+        console.log(`Generating backup question for lesson ${lessonId}, difficulty ${difficulty}`);
+        const backupQuestions = await aiCacheManager.generateQuestionsWithCache(lessonId, difficulty, 1);
+        
+        if (backupQuestions.length > 0) {
+          const backupQuestion = backupQuestions[0]!;
+          return {
+            id: backupQuestion.id,
+            lesson_id: backupQuestion.lesson_id,
+            difficulty: backupQuestion.difficulty as 'N' | 'H' | 'V',
+            difficulty_name: backupQuestion.difficulty === 'N' ? 'Nhận biết' : 
+                           backupQuestion.difficulty === 'H' ? 'Thông hiểu' : 'Vận dụng',
+            content: backupQuestion.content,
+            type: 'multiple_choice' as const,
+            choices: backupQuestion.choices,
+            correct_answer: backupQuestion.correct_answer,
+            explanation: backupQuestion.explanation
+          };
+        }
+
+        return null;
+      } catch (error) {
+        console.error(`Error generating question for lesson ${lessonId}:`, error);
+        return null;
+      }
+    });
+
+    // Wait for all questions to be generated
+    const questions = await Promise.all(questionPromises);
+    
+    // Filter out null results
+    const validQuestions = questions.filter(q => q !== null) as Question[];
+    
+    // Cache the result
+    this.bundleCache.set(cacheKey, validQuestions);
+    
+    console.log(`Generated bundle with ${validQuestions.length} questions`);
+    return validQuestions;
+  }
+
+  // Optimized evaluation with parallel processing
+  evaluateBundle(sessionId: string, answers: Answer[]): { 
+    score: number; 
+    weakLessons: number[]; 
+    nextState: SessionState;
+    passed: boolean;
+    wrongAnswers: Answer[];
+  } {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+
+    const correctAnswers = answers.filter(a => a.is_correct).length;
+    const score = correctAnswers;
+    const wrongAnswers = answers.filter(a => !a.is_correct);
+    
+    // Parallel processing for weak lessons identification
+    const weakLessons = wrongAnswers
+      .map(a => {
+        const question = session.current_bundle.find(q => q.id === a.question_id);
+        return question?.lesson_id;
+      })
+      .filter((lessonId): lessonId is number => lessonId !== undefined)
+      .filter((lessonId, index, arr) => arr.indexOf(lessonId) === index); // Remove duplicates
+
+    let nextState: SessionState;
+    let passed = false;
+    
+    // Optimized state transition logic
+    if (score >= 4) {
+      passed = true;
+      switch (session.current_difficulty) {
+        case 'N': nextState = 'REVIEW_N'; break;
+        case 'H': nextState = 'REVIEW_H'; break;
+        case 'V': nextState = 'REVIEW_V'; break;
+        default: nextState = 'END';
+      }
+    } else {
+      passed = false;
+      switch (session.current_difficulty) {
+        case 'N': nextState = 'REVIEW_FAIL_N'; break;
+        case 'H': nextState = 'REVIEW_FAIL_H'; break;
+        case 'V': nextState = 'REVIEW_FAIL_V'; break;
+        default: nextState = 'END';
+      }
+    }
+
+    return { score, weakLessons, nextState, passed, wrongAnswers };
+  }
+
+  // Optimized supplementary bundle generation
+  async generateSupplementaryBundle(sessionId: string, wrongAnswers: Answer[], difficulty: 'N' | 'H' | 'V'): Promise<Question[]> {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+
+    // Create cache key
+    const wrongAnswerIds = wrongAnswers.map(a => a.question_id).sort();
+    const bundleKey = wrongAnswerIds.join(',');
+    
+    // Check if already generated
+    if (session.supplementary_bundles[bundleKey]) {
+      return session.supplementary_bundles[bundleKey];
+    }
+
+    // Parallel generation for each wrong answer
+    const supplementaryPromises = wrongAnswers.map(async (wrongAnswer) => {
+      const originalQuestion = session.current_bundle.find(q => q.id === wrongAnswer.question_id);
+      
+      if (originalQuestion) {
+        try {
+          // Generate 2 supplementary questions in parallel
+          const generatedQuestions = await aiCacheManager.generateQuestionsWithCache(
+            originalQuestion.lesson_id, 
+            difficulty, 
+            2, 
+            originalQuestion
+          );
+          
+          return generatedQuestions.map(q => ({
+            id: q.id,
+            lesson_id: q.lesson_id,
+            difficulty: q.difficulty as 'N' | 'H' | 'V',
+            difficulty_name: q.difficulty === 'N' ? 'Nhận biết' : 
+                           q.difficulty === 'H' ? 'Thông hiểu' : 'Vận dụng',
+            content: q.content,
+            type: 'multiple_choice' as const,
+            choices: q.choices,
+            correct_answer: q.correct_answer,
+            explanation: q.explanation
+          }));
+        } catch (error) {
+          console.error(`Error generating supplementary questions for ${wrongAnswer.question_id}:`, error);
+          return [];
+        }
+      }
+      return [];
+    });
+
+    // Wait for all supplementary questions
+    const supplementaryResults = await Promise.all(supplementaryPromises);
+    const supplementaryQuestions = supplementaryResults.flat();
+
+    // Store in session
+    session.supplementary_bundles[bundleKey] = supplementaryQuestions;
+    supplementaryQuestions.forEach(q => session.asked_question_ids.add(q.id));
+
+    console.log(`Generated ${supplementaryQuestions.length} supplementary questions`);
+    return supplementaryQuestions;
+  }
+
+  // Optimized state transition processing
+  async processStateTransition(sessionId: string, answers: Answer[]): Promise<{ 
+    session: Session; 
+    nextBundle?: Question[]; 
+    needsTutor?: boolean;
+    needsReview?: boolean;
+    wrongAnswers?: Answer[];
+  }> {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+
+    // Add answers to session
+    session.answers.push(...answers);
+    session.answers_by_difficulty[session.current_difficulty].push(...answers);
+    answers.forEach(a => session.asked_question_ids.add(a.question_id));
+
+    let nextBundle: Question[] | undefined;
+    let needsTutor = false;
+    let needsReview = false;
+    let wrongAnswers: Answer[] = [];
+
+    // Optimized state processing
+    switch (session.current_state) {
+      case 'BUNDLE_N':
+      case 'BUNDLE_H':
+      case 'BUNDLE_V':
+        const evaluation = this.evaluateBundle(sessionId, answers);
+        session.current_state = evaluation.nextState;
+        session.weak_lessons = evaluation.weakLessons;
+        wrongAnswers = evaluation.wrongAnswers;
+
+        if (evaluation.passed) {
+          needsReview = true;
+        } else {
+          needsReview = true;
+        }
+        break;
+
+      case 'SUPP_N':
+      case 'SUPP_H':
+      case 'SUPP_V':
+        const suppEvaluation = this.evaluateBundle(sessionId, answers);
+        needsReview = true;
+        wrongAnswers = suppEvaluation.wrongAnswers;
+        
+        // Determine next state based on performance
+        const totalSuppQuestions = answers.length;
+        const correctSuppAnswers = suppEvaluation.score;
+        const suppPercentage = (correctSuppAnswers / totalSuppQuestions) * 100;
+        
+        if (suppPercentage >= 80) {
+          switch (session.current_difficulty) {
+            case 'N': session.current_state = 'REVIEW_SUPP_N'; break;
+            case 'H': session.current_state = 'REVIEW_SUPP_H'; break;
+            case 'V': session.current_state = 'REVIEW_SUPP_V'; break;
+          }
+        } else {
+          switch (session.current_difficulty) {
+            case 'N': session.current_state = 'REVIEW_SUPP_FAIL_N'; break;
+            case 'H': session.current_state = 'REVIEW_SUPP_FAIL_H'; break;
+            case 'V': session.current_state = 'REVIEW_SUPP_FAIL_V'; break;
+          }
+        }
+        break;
+
+      case 'TUTOR_N':
+      case 'TUTOR_H':
+      case 'TUTOR_V':
+        // Move to next difficulty after tutor
+        const tutorDifficulty = session.current_difficulty;
+        if (tutorDifficulty === 'N') {
+          session.current_state = 'BUNDLE_H';
+          session.current_difficulty = 'H';
+          nextBundle = await this.generateInitialBundle('H', session.asked_question_ids);
+        } else if (tutorDifficulty === 'H') {
+          session.current_state = 'BUNDLE_V';
+          session.current_difficulty = 'V';
+          nextBundle = await this.generateInitialBundle('V', session.asked_question_ids);
+        } else {
+          session.current_state = 'END';
+        }
+        break;
+
+      case 'REVIEW_N':
+      case 'REVIEW_H':
+      case 'REVIEW_V':
+      case 'REVIEW_FAIL_N':
+      case 'REVIEW_FAIL_H':
+      case 'REVIEW_FAIL_V':
+      case 'REVIEW_SUPP_N':
+      case 'REVIEW_SUPP_H':
+      case 'REVIEW_SUPP_V':
+      case 'REVIEW_SUPP_FAIL_N':
+      case 'REVIEW_SUPP_FAIL_H':
+      case 'REVIEW_SUPP_FAIL_V':
+        needsReview = true;
+        break;
+    }
+
+    this.sessions.set(sessionId, session);
+    return { session, nextBundle, needsTutor, needsReview, wrongAnswers };
+  }
+
+  // Generate detailed supplementary review session
+  async generateDetailedSupplementaryReview(sessionId: string, difficulty: 'N' | 'H' | 'V'): Promise<ReviewSession> {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+
+    // Get wrong answers from the current difficulty
+    const difficultyAnswers = session.answers_by_difficulty[difficulty] || [];
+    const wrongAnswers = difficultyAnswers.filter(a => !a.is_correct);
+
+    if (wrongAnswers.length === 0) {
+      throw new Error('No wrong answers found for detailed supplementary review');
+    }
+
+    // Generate detailed explanations for wrong questions
+    const detailedExplanations = await this.generateDetailedExplanations(wrongAnswers);
+
+    // Create lesson summary
+    const lesson_summary: { [lesson: number]: any } = {};
+    const topicMap: { [key: number]: string } = {
+      1: "Tính đơn điệu và cực trị của hàm số",
+      2: "Giá trị lớn nhất - nhỏ nhất của hàm số", 
+      3: "Đường tiệm cận của đồ thị hàm số",
+      4: "Khảo sát sự biến thiên và vẽ đồ thị hàm số",
+      5: "Ứng dụng đạo hàm và khảo sát hàm số để giải quyết bài toán thực tế"
+    };
+
+    // Calculate lesson statistics
+    const lessonStats: { [lesson: number]: { total: number; correct: number; time_spent: number } } = {};
+    
+    for (const answer of difficultyAnswers) {
+      const question = session.current_bundle.find(q => q.id === answer.question_id);
+      if (question) {
+        const lessonId = question.lesson_id;
+        if (!lessonStats[lessonId]) {
+          lessonStats[lessonId] = { total: 0, correct: 0, time_spent: 0 };
+        }
+        lessonStats[lessonId].total++;
+        lessonStats[lessonId].time_spent += answer.time_spent;
+        if (answer.is_correct) {
+          lessonStats[lessonId].correct++;
+        }
+      }
+    }
+
+    for (const [lesson, stats] of Object.entries(lessonStats)) {
+      const accuracy = (stats.correct / stats.total) * 100;
+      const lessonNum = parseInt(lesson);
+      
+      lesson_summary[lessonNum] = {
+        total_questions: stats.total,
+        correct_answers: stats.correct,
+        accuracy: accuracy,
+        weak_topics: accuracy < 70 ? [topicMap[lessonNum]] : [],
+        strong_topics: accuracy >= 80 ? [topicMap[lessonNum]] : []
+      };
+    }
+
+    // Calculate overall performance
+    const totalQuestions = difficultyAnswers.length;
+    const correctAnswers = difficultyAnswers.filter(a => a.is_correct).length;
+    const totalTimeSpent = difficultyAnswers.reduce((sum, a) => sum + a.time_spent, 0);
+
+    // Generate recommendations using AI
+    const recommendations = await aiCacheManager.generateRecommendationsWithCache(lesson_summary, difficulty);
+    const overallAccuracy = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+    const nextDifficultyPreparation = await this.generateNextDifficultyPreparation(difficulty, overallAccuracy);
+
+    const reviewSession: ReviewSession = {
+      id: `detailed_supplementary_review_${sessionId}_${difficulty}_${Date.now()}`,
+      difficulty,
+      lesson_summary,
+      overall_performance: {
+        total_questions: totalQuestions,
+        correct_answers: correctAnswers,
+        accuracy: overallAccuracy,
+        time_spent: totalTimeSpent
+      },
+      recommendations,
+      next_difficulty_preparation: nextDifficultyPreparation,
+      created_at: new Date()
+    };
+
+    // Store review session
+    session.review_sessions.push(reviewSession);
+    this.sessions.set(sessionId, session);
+
+    return reviewSession;
+  }
+
+  // Generate detailed explanations for wrong questions
+  private async generateDetailedExplanations(wrongQuestions: any[]): Promise<any[]> {
+    try {
+      const explanations = [];
+      for (const question of wrongQuestions) {
+        const explanation = {
+          question_id: question.id,
+          lesson_id: question.lesson_id,
+          content: question.content,
+          explanation: question.explanation || "Giải thích sẽ được cập nhật",
+          theory_summary: "Lý thuyết liên quan sẽ được cập nhật",
+          step_by_step_solution: "Lời giải từng bước sẽ được cập nhật"
+        };
+        explanations.push(explanation);
+      }
+      return explanations;
+    } catch (error) {
+      console.error('Error generating detailed explanations:', error);
+      return wrongQuestions.map(q => ({
+        question_id: q.id,
+        lesson_id: q.lesson_id,
+        content: q.content,
+        explanation: q.explanation || "Giải thích sẽ được cập nhật",
+        theory_summary: "Lý thuyết liên quan sẽ được cập nhật",
+        step_by_step_solution: "Lời giải từng bước sẽ được cập nhật"
+      }));
+    }
+  }
+
+  // Optimized review session generation with caching
+  async generateReviewSession(sessionId: string, difficulty: 'N' | 'H' | 'V'): Promise<ReviewSession> {
+    const cacheKey = `review_${sessionId}_${difficulty}`;
+    
+    // Check cache first
+    const cached = this.reviewCache.get(cacheKey);
+    if (cached) {
+      console.log(`Cache hit for review: ${cacheKey}`);
+      return cached;
+    }
+
+    console.log(`Cache miss for review: ${cacheKey}`);
+
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+
+    // Parallel processing for lesson analysis
+    const lessonStats: { [lesson: number]: { total: number; correct: number; time_spent: number } } = {};
+    let difficultyAnswers = session.answers_by_difficulty[difficulty] || [];
+
+    // Check if this is a supplementary review
+    const isSupplementaryReview = session.current_state?.startsWith('REVIEW_SUPP_');
+    if (isSupplementaryReview) {
+      difficultyAnswers = difficultyAnswers.filter(answer => 
+        answer.question_id.startsWith('generated_')
+      );
+    }
+
+    // Parallel processing for lesson statistics
+    const lessonPromises = difficultyAnswers.map(async (answer) => {
+      let question = null;
+      
+      // Try to find question in multiple sources
+      question = session.current_bundle.find(q => q.id === answer.question_id);
+      
+      if (!question) {
+        const bundle = session.used_bundles[difficulty];
+        question = bundle?.find(q => q.id === answer.question_id);
+      }
+      
+      if (!question) {
+        for (const [key, suppBundle] of Object.entries(session.supplementary_bundles)) {
+          question = suppBundle.find(q => q.id === answer.question_id);
+          if (question) break;
+        }
+      }
+      
+      if (!question) {
+        const lessonId = answer.question_id ? parseInt(answer.question_id.split('_')[1]) || 1 : 1;
+        question = { lesson_id: lessonId, difficulty: difficulty };
+      }
+      
+      return { answer, question };
+    });
+
+    const answerQuestionPairs = await Promise.all(lessonPromises);
+
+    // Process results
+    for (const { answer, question } of answerQuestionPairs) {
+      if (question) {
+        const lessonId = question.lesson_id;
+        if (!lessonStats[lessonId]) {
+          lessonStats[lessonId] = { total: 0, correct: 0, time_spent: 0 };
+        }
+        lessonStats[lessonId].total++;
+        lessonStats[lessonId].time_spent += answer.time_spent;
+        if (answer.is_correct) {
+          lessonStats[lessonId].correct++;
+        }
+      }
+    }
+
+    // Create lesson summary
+    const lesson_summary: { [lesson: number]: any } = {};
+    const topicMap: { [key: number]: string } = {
+      1: "Tính đơn điệu và cực trị của hàm số",
+      2: "Giá trị lớn nhất - nhỏ nhất của hàm số", 
+      3: "Đường tiệm cận của đồ thị hàm số",
+      4: "Khảo sát sự biến thiên và vẽ đồ thị hàm số",
+      5: "Ứng dụng đạo hàm và khảo sát hàm số để giải quyết bài toán thực tế"
+    };
+
+    for (const [lesson, stats] of Object.entries(lessonStats)) {
+      const accuracy = (stats.correct / stats.total) * 100;
+      const lessonNum = parseInt(lesson);
+      
+      lesson_summary[lessonNum] = {
+        total_questions: stats.total,
+        correct_answers: stats.correct,
+        accuracy: accuracy,
+        weak_topics: accuracy < 70 ? [topicMap[lessonNum]] : [],
+        strong_topics: accuracy >= 80 ? [topicMap[lessonNum]] : []
+      };
+    }
+
+    // Calculate overall performance
+    const totalQuestions = difficultyAnswers.length;
+    const correctAnswers = difficultyAnswers.filter(a => a.is_correct).length;
+    const totalTimeSpent = difficultyAnswers.reduce((sum, a) => sum + a.time_spent, 0);
+
+    // Parallel AI generation for recommendations
+    const [recommendations, nextDifficultyPreparation] = await Promise.all([
+      aiCacheManager.generateRecommendationsWithCache(lesson_summary, difficulty),
+      this.generateNextDifficultyPreparation(difficulty, (correctAnswers / totalQuestions) * 100)
+    ]);
+
+    const reviewSession: ReviewSession = {
+      id: `review_${sessionId}_${difficulty}_${Date.now()}`,
+      difficulty,
+      lesson_summary,
+      overall_performance: {
+        total_questions: totalQuestions,
+        correct_answers: correctAnswers,
+        accuracy: totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0,
+        time_spent: totalTimeSpent
+      },
+      recommendations,
+      next_difficulty_preparation: nextDifficultyPreparation,
+      created_at: new Date()
+    };
+
+    // Store review session
+    session.review_sessions.push(reviewSession);
+    this.reviewCache.set(cacheKey, reviewSession);
+    this.sessions.set(sessionId, session);
+
+    return reviewSession;
+  }
+
+  // Optimized next difficulty preparation
+  private async generateNextDifficultyPreparation(currentDifficulty: string, accuracy: number): Promise<string[]> {
+    try {
+      const nextDifficulty = currentDifficulty === 'N' ? 'H' : currentDifficulty === 'H' ? 'V' : 'END';
+      
+      if (nextDifficulty === 'END') {
+        return ["Chúc mừng bạn đã hoàn thành tất cả các độ khó!"];
+      }
+
+      // Use cached recommendations
+      const lessonSummary = { overall_accuracy: accuracy };
+      return await aiCacheManager.generateRecommendationsWithCache(lessonSummary, nextDifficulty);
+    } catch (error) {
+      console.error('Error generating next difficulty preparation:', error);
+      return [
+        "Ôn tập lại các khái niệm cơ bản",
+        "Làm thêm bài tập để củng cố kiến thức",
+        "Chuẩn bị tinh thần cho độ khó cao hơn"
+      ];
+    }
+  }
+
+  // Start bundle with optimization
+  async startBundle(sessionId: string, difficulty: 'N' | 'H' | 'V'): Promise<Question[]> {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+
+    const bundle = await this.generateInitialBundle(difficulty, session.asked_question_ids);
+    session.current_bundle = bundle;
+    session.current_question_index = 0;
+    session.current_difficulty = difficulty;
+    session.current_state = `BUNDLE_${difficulty}` as SessionState;
+    
+    // Save bundle for review purposes
+    session.used_bundles[difficulty] = [...bundle];
+    console.log(`Saved bundle for difficulty ${difficulty}: ${bundle.length} questions`);
+
+    this.sessions.set(sessionId, session);
+    return bundle;
+  }
+
+  // Continue after review with optimization
+  async continueAfterReview(sessionId: string, difficulty: 'N' | 'H' | 'V'): Promise<{ session: Session; nextBundle?: Question[] }> {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+
+    let nextBundle: Question[] | undefined;
+
+    if (difficulty === 'N') {
+      session.current_state = 'BUNDLE_H';
+      session.current_difficulty = 'H';
+      nextBundle = await this.generateInitialBundle('H', session.asked_question_ids);
+      session.used_bundles['H'] = [...nextBundle];
+      session.current_bundle = nextBundle;
+      session.current_question_index = 0;
+    } else if (difficulty === 'H') {
+      session.current_state = 'BUNDLE_V';
+      session.current_difficulty = 'V';
+      nextBundle = await this.generateInitialBundle('V', session.asked_question_ids);
+      session.used_bundles['V'] = [...nextBundle];
+      session.current_bundle = nextBundle;
+      session.current_question_index = 0;
+    } else {
+      session.current_state = 'END';
+    }
+
+    this.sessions.set(sessionId, session);
+    return { session, nextBundle };
+  }
+
+  // Continue after fail review with optimization
+  async continueAfterFailReview(sessionId: string, difficulty: 'N' | 'H' | 'V'): Promise<{ session: Session; nextBundle?: Question[] }> {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+
+    const initialBundleAnswers = session.answers_by_difficulty[difficulty] || [];
+    const wrongAnswers = initialBundleAnswers.filter(a => !a.is_correct);
+
+    const supplementaryBundle = await this.generateSupplementaryBundle(sessionId, wrongAnswers, difficulty);
+    
+    switch (difficulty) {
+      case 'N': session.current_state = 'SUPP_N'; break;
+      case 'H': session.current_state = 'SUPP_H'; break;
+      case 'V': session.current_state = 'SUPP_V'; break;
+    }
+
+    session.current_bundle = supplementaryBundle;
+    session.current_question_index = 0;
+
+    this.sessions.set(sessionId, session);
+    return { session, nextBundle: supplementaryBundle };
+  }
+
+  // Continue after supplementary review with optimization
+  async continueAfterSupplementaryReview(sessionId: string, difficulty: 'N' | 'H' | 'V'): Promise<{ session: Session; nextBundle?: Question[] }> {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+
+    let nextBundle: Question[] | undefined;
+
+    if (difficulty === 'H') {
+      session.current_state = 'BUNDLE_H';
+      session.current_difficulty = 'H';
+      nextBundle = await this.generateInitialBundle('H', session.asked_question_ids);
+      session.used_bundles['H'] = [...nextBundle];
+      session.current_bundle = nextBundle;
+      session.current_question_index = 0;
+    } else if (difficulty === 'V') {
+      session.current_state = 'BUNDLE_V';
+      session.current_difficulty = 'V';
+      nextBundle = await this.generateInitialBundle('V', session.asked_question_ids);
+      session.used_bundles['V'] = [...nextBundle];
+      session.current_bundle = nextBundle;
+      session.current_question_index = 0;
+    } else if (difficulty === 'END') {
+      session.current_state = 'END';
+    } else {
+      session.current_state = 'END';
+    }
+
+    this.sessions.set(sessionId, session);
+    return { session, nextBundle };
+  }
+
+  // Generate mastery report with optimization
+  generateMasteryReport(sessionId: string): any {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+
+    const report: any = {
+      session_id: sessionId,
+      student_name: session.student_name,
+      grade: session.grade,
+      total_questions: session.answers.length,
+      correct_answers: session.answers.filter(a => a.is_correct).length,
+      accuracy: 0,
+      mastery_map: {},
+      weak_areas: [],
+      recommendations: []
+    };
+
+    if (report.total_questions > 0) {
+      report.accuracy = (report.correct_answers / report.total_questions) * 100;
+    }
+
+    // Analyze mastery by lesson and difficulty
+    const lessonStats: { [lesson: number]: { [difficulty: string]: { total: number; correct: number } } } = {};
+    
+    for (const answer of session.answers) {
+      const question = session.current_bundle.find(q => q.id === answer.question_id);
+      if (question) {
+        if (!lessonStats[question.lesson_id]) {
+          lessonStats[question.lesson_id] = {};
+        }
+        if (!lessonStats[question.lesson_id][question.difficulty]) {
+          lessonStats[question.lesson_id][question.difficulty] = { total: 0, correct: 0 };
+        }
+        lessonStats[question.lesson_id][question.difficulty].total++;
+        if (answer.is_correct) {
+          lessonStats[question.lesson_id][question.difficulty].correct++;
+        }
+      }
+    }
+
+    report.mastery_map = lessonStats;
+    
+    // Identify weak areas
+    for (const [lesson, difficulties] of Object.entries(lessonStats)) {
+      for (const [difficulty, stats] of Object.entries(difficulties)) {
+        const accuracy = (stats.correct / stats.total) * 100;
+        if (accuracy < 70) {
+          report.weak_areas = report.weak_areas || [];
+          report.weak_areas.push({
+            lesson: parseInt(lesson),
+            difficulty,
+            accuracy,
+            total_questions: stats.total,
+            correct_answers: stats.correct
+          });
+        }
+      }
+    }
+
+    // Generate recommendations
+    if (report.weak_areas.length > 0) {
+      report.recommendations = [
+        "Tập trung ôn tập các bài có độ chính xác thấp",
+        "Làm thêm bài tập bổ sung cho các chủ đề yếu"
+      ];
+    } else {
+      report.recommendations = ["Tiếp tục học các chủ đề nâng cao"];
+    }
+
+    return report;
+  }
+
+  // Clear caches
+  clearCaches(): void {
+    this.bundleCache.clear();
+    this.reviewCache.clear();
+    aiCacheManager.clearCache();
+  }
+
+  // Get performance stats
+  getPerformanceStats(): {
+    sessions: number;
+    bundleCache: number;
+    reviewCache: number;
+    aiCacheStats: any;
+  } {
+    return {
+      sessions: this.sessions.size,
+      bundleCache: this.bundleCache.size,
+      reviewCache: this.reviewCache.size,
+      aiCacheStats: aiCacheManager.getCacheStats()
+    };
+  }
+}
+
+// Export singleton instance
+export const optimizedAdaptiveLearningManager = new OptimizedAdaptiveLearningManager();
