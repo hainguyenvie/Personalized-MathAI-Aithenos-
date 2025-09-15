@@ -5,8 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import KnowledgeMap from "@/components/knowledge-map";
 import GamificationElements from "@/components/gamification-elements";
-import ProtectedRoute from "@/components/protected-route";
-import { useAuth } from "@/contexts/auth-context";
 import { mockUser, mockLearningTopics, mockAchievements } from "@/data/mock-data";
 import { useLocation } from "wouter";
 import { AnimatedProgressBar, StaggeredList, PulseAttention, TypewriterText } from "@/components/enhanced-animations";
@@ -14,15 +12,14 @@ import { motion } from "framer-motion";
 
 function HomeContent() {
   const [, navigate] = useLocation();
-  const { user } = useAuth();
   const [hasOnboarding, setHasOnboarding] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [lastAssessment, setLastAssessment] = useState<any | null>(null);
   const [knowledgeTiles, setKnowledgeTiles] = useState<any[]>([]);
   const [onboardingConfig, setOnboardingConfig] = useState<any>(null);
 
-  // Get user's display name from Google OAuth metadata
-  const userDisplayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Bạn';
+  // Use generic greeting for display
+  const userDisplayName = 'bạn học';
 
   useEffect(() => {
     try {
@@ -423,9 +420,5 @@ function HomeContent() {
 }
 
 export default function Home() {
-  return (
-    <ProtectedRoute>
-      <HomeContent />
-    </ProtectedRoute>
-  );
+  return <HomeContent />;
 }

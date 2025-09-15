@@ -1,13 +1,10 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Crown, Home, ClipboardCheck, PlayCircle, Trophy, Medal, Coins, LogOut, User, FileText, Brain } from "lucide-react";
-import { useAuth } from "@/contexts/auth-context";
-import { Button } from "@/components/ui/button";
+import { Crown, Home, ClipboardCheck, PlayCircle, Trophy, Medal, Coins, FileText, Brain } from "lucide-react";
 import { mockUser } from "@/data/mock-data";
 
 export default function Navigation() {
   const [location] = useLocation();
-  const { user, signOut } = useAuth();
 
   const navItems = [
     { path: "/", label: "Trang chủ", icon: Home, view: "dashboard" },
@@ -44,40 +41,15 @@ export default function Navigation() {
               ))}
             </div>
             <div className="flex items-center space-x-4">
-              {user ? (
-                <>
-                  <div className="flex items-center space-x-2 bg-teal/20 px-3 py-1 rounded-full">
-                    <Coins className="text-gold" size={16} />
-                    <span className="text-gold font-semibold">{mockUser.points.toLocaleString()}</span>
-                  </div>
-                  <div className="w-8 h-8 bg-gold rounded-full flex items-center justify-center">
-                    <span className="text-navy font-semibold text-sm">
-                      {user.user_metadata?.full_name?.split(' ').map((n: string) => n[0]).join('') || 'U'}
-                    </span>
-                  </div>
-                  <Button
-                    onClick={signOut}
-                    variant="ghost"
-                    size="sm"
-                    className="text-white/80 hover:text-white hover:bg-white/10"
-                    data-testid="button-signout"
-                  >
-                    <LogOut size={16} />
-                  </Button>
-                </>
-              ) : (
-                <Link href="/login">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-white/80 hover:text-white hover:bg-white/10"
-                    data-testid="link-login"
-                  >
-                    <User size={16} className="mr-2" />
-                    Đăng nhập
-                  </Button>
-                </Link>
-              )}
+              <div className="flex items-center space-x-2 bg-teal/20 px-3 py-1 rounded-full">
+                <Coins className="text-gold" size={16} />
+                <span className="text-gold font-semibold">{mockUser.points.toLocaleString()}</span>
+              </div>
+              <div className="w-8 h-8 bg-gold rounded-full flex items-center justify-center">
+                <span className="text-navy font-semibold text-sm">
+                  {mockUser.fullName.split(' ').map((n: string) => n[0]).join('')}
+                </span>
+              </div>
             </div>
           </div>
         </div>

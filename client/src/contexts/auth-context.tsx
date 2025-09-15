@@ -20,7 +20,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('🔐 Initial session check:', session ? 'Found session' : 'No session');
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
@@ -30,7 +29,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('🔄 Auth state change:', event, session ? 'Session active' : 'No session');
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
@@ -48,11 +46,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const baseURL = getBaseURL()
     const redirectURL = `${baseURL}/auth/callback`
     
-    console.log('🔗 Redirect URL being used:', redirectURL);
-    console.log('🌐 Base URL:', baseURL);
-    console.log('🔑 Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
-    console.log('🆔 Current domain:', window.location.hostname);
-    console.log('🌍 Full current URL:', window.location.href);
     
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -67,8 +60,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) {
       console.error('❌ OAuth error:', error)
       throw error
-    } else {
-      console.log('✅ OAuth request sent successfully')
     }
   }
 

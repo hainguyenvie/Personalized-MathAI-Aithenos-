@@ -3,8 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
-import { useAuth } from '@/contexts/auth-context'
-import ProtectedRoute from '@/components/protected-route'
 import { 
   adaptiveQuestionBank, 
   testConfig, 
@@ -61,7 +59,6 @@ const difficultyColors = {
 }
 
 function AdaptiveTestContent() {
-  const { user } = useAuth()
   const [, navigate] = useLocation()
   const [testState, setTestState] = useState<TestState>({
     phase: 'intro',
@@ -528,8 +525,6 @@ function AdaptiveTestContent() {
 
 export default function AdaptiveTest() {
   return (
-    <ProtectedRoute>
-      <AdaptiveTestContent />
-    </ProtectedRoute>
+    <AdaptiveTestContent />
   )
 }
