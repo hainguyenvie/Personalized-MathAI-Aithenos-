@@ -8,72 +8,90 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      try {
-        // Development-only logging (never log sensitive URLs in production)
-        if (import.meta.env.DEV) {
-          console.log('Auth callback processing...');
-        }
-        
-        // Check for error in URL first
-        const urlParams = new URLSearchParams(window.location.search);
-        const errorCode = urlParams.get('error');
-        const errorDescription = urlParams.get('error_description');
-        
-        if (errorCode) {
-          if (import.meta.env.DEV) {
-            console.error('OAuth error:', errorCode);
-          }
-          // Clean up URL and redirect
-          window.history.replaceState({}, document.title, '/login');
-          navigate('/login?error=oauth_failed');
-          return;
-        }
-        
-        // Handle the OAuth callback
-        const { data, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          if (import.meta.env.DEV) {
-            console.error('Auth session error:', error.message);
-          }
-          window.history.replaceState({}, document.title, '/login');
-          navigate('/login?error=session_failed');
-          return;
-        }
+      // Check for OAuth error in URL first
+      const urlParams = new URLSearchParams(window.location.search);
+      const errorCode = urlParams.get('error');
+      
+      if (errorCode) {
+        console.log('🚨 OAuth error detected:', errorCode);
+        window.history.replaceState({}, document.title, '/login');
+        navigate('/login?error=oauth_failed');
+        return;
+      }
 
-        if (data.session && data.session.user) {
-          if (import.meta.env.DEV) {
-            console.log('Auth successful for user:', data.session.user.email);
-          }
-          // Clean up URL and redirect to home
+      console.log('🔄 OAuth callback - processing authentication...');
+      
+      let hasRedirected = false;
+      let timeoutId: NodeJS.Timeout;
+      
+      // Handle the auth state change
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('🔄 Auth event in callback:', event, session ? 'Session active' : 'No session');
+        
+        if (event === 'SIGNED_IN' && session && !hasRedirected) {
+          console.log('✅ Successfully signed in! Redirecting to home...');
+          hasRedirected = true;
+          clearTimeout(timeoutId);
+          subscription.unsubscribe();
           window.history.replaceState({}, document.title, '/');
           navigate('/');
-        } else {
-          // Wait for Supabase to process the callback
-          setTimeout(async () => {
-            const { data: retryData } = await supabase.auth.getSession();
-            if (retryData.session) {
-              if (import.meta.env.DEV) {
-                console.log('Session established after retry');
-              }
-              window.history.replaceState({}, document.title, '/');
-              navigate('/');
-            } else {
-              if (import.meta.env.DEV) {
-                console.log('No session found after callback processing');
-              }
-              window.history.replaceState({}, document.title, '/login');
-              navigate('/login?error=no_session');
-            }
-          }, 1000);
+        } else if (event === 'SIGNED_OUT' && !hasRedirected) {
+          console.log('❌ Sign out detected in callback');
+          hasRedirected = true;
+          clearTimeout(timeoutId);
+          subscription.unsubscribe();
+          window.history.replaceState({}, document.title, '/login');
+          navigate('/login?error=signed_out');
         }
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Auth callback failed:', error);
+      });
+
+      // Explicitly handle the OAuth code exchange if present
+      const urlContainsAuthParams = window.location.hash.includes('access_token') || 
+                                   window.location.search.includes('code=');
+      
+      if (urlContainsAuthParams) {
+        console.log('🔑 Auth parameters detected, processing...');
+        try {
+          await supabase.auth.exchangeCodeForSession(window.location.href);
+        } catch (error) {
+          console.log('❌ Code exchange error:', error);
+          if (!hasRedirected) {
+            hasRedirected = true;
+            clearTimeout(timeoutId);
+            subscription.unsubscribe();
+            window.history.replaceState({}, document.title, '/login');
+            navigate('/login?error=exchange_failed');
+          }
         }
-        window.history.replaceState({}, document.title, '/login');
-        navigate('/login?error=callback_exception');
       }
+
+      // Check for existing session
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session && !hasRedirected) {
+        console.log('✅ Existing session found! Redirecting to home...');
+        hasRedirected = true;
+        clearTimeout(timeoutId);
+        subscription.unsubscribe();
+        window.history.replaceState({}, document.title, '/');
+        navigate('/');
+      }
+      
+      // Set up fallback timeout (redirect to login after 8 seconds if no session)
+      timeoutId = setTimeout(() => {
+        if (!hasRedirected) {
+          console.log('⏰ Callback timeout - redirecting to login');
+          hasRedirected = true;
+          subscription.unsubscribe();
+          window.history.replaceState({}, document.title, '/login');
+          navigate('/login?error=timeout');
+        }
+      }, 8000);
+
+      // Cleanup function
+      return () => {
+        clearTimeout(timeoutId);
+        subscription.unsubscribe();
+      };
     };
 
     handleAuthCallback();
