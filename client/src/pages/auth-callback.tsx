@@ -20,6 +20,9 @@ export default function AuthCallback() {
       }
 
       console.log('🔄 OAuth callback - processing authentication...');
+      console.log('📍 Callback URL:', window.location.href);
+      console.log('🔗 URL search params:', window.location.search);
+      console.log('🔗 URL hash:', window.location.hash.substring(0, 50) + '...');
       
       let hasRedirected = false;
       let timeoutId: NodeJS.Timeout | undefined;

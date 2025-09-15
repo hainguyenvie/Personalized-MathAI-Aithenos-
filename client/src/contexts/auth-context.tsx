@@ -50,6 +50,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     console.log('🔗 Redirect URL being used:', redirectURL);
     console.log('🌐 Base URL:', baseURL);
+    console.log('🔑 Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+    console.log('🆔 Current domain:', window.location.hostname);
+    console.log('🌍 Full current URL:', window.location.href);
     
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
