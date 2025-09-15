@@ -22,7 +22,7 @@ export default function AuthCallback() {
       console.log('🔄 OAuth callback - processing authentication...');
       
       let hasRedirected = false;
-      let timeoutId: NodeJS.Timeout;
+      let timeoutId: NodeJS.Timeout | undefined;
       
       // Handle the auth state change
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -57,7 +57,7 @@ export default function AuthCallback() {
           console.log('❌ Code exchange error:', error);
           if (!hasRedirected) {
             hasRedirected = true;
-            clearTimeout(timeoutId);
+            if (timeoutId) clearTimeout(timeoutId);
             subscription.unsubscribe();
             window.history.replaceState({}, document.title, '/login');
             navigate('/login?error=exchange_failed');
@@ -70,7 +70,7 @@ export default function AuthCallback() {
       if (sessionData.session && !hasRedirected) {
         console.log('✅ Existing session found! Redirecting to home...');
         hasRedirected = true;
-        clearTimeout(timeoutId);
+        if (timeoutId) clearTimeout(timeoutId);
         subscription.unsubscribe();
         window.history.replaceState({}, document.title, '/');
         navigate('/');
@@ -89,7 +89,7 @@ export default function AuthCallback() {
 
       // Cleanup function
       return () => {
-        clearTimeout(timeoutId);
+        if (timeoutId) clearTimeout(timeoutId);
         subscription.unsubscribe();
       };
     };
