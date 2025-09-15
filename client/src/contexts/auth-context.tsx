@@ -38,24 +38,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const getBaseURL = () => {
-    // Production domain
-    if (window.location.hostname === 'aithenos.com') {
-      return 'https://aithenos.com'
-    }
-    
-    // Development/Replit domain
-    if (window.location.hostname.includes('.replit.app')) {
-      return window.location.origin
-    }
-    
-    // Fallback for local development
+    // Use the current origin for all environments
     return window.location.origin
   }
 
   const signInWithGoogle = async () => {
     const baseURL = getBaseURL()
     const redirectURL = `${baseURL}/auth/callback`
-    console.log('Auth redirect URL:', redirectURL)
+    
+    if (import.meta.env.DEV) {
+      console.log('Auth redirect URL:', redirectURL)
+    }
     
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',

@@ -9,25 +9,70 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
+        // Development-only logging (never log sensitive URLs in production)
+        if (import.meta.env.DEV) {
+          console.log('Auth callback processing...');
+        }
+        
+        // Check for error in URL first
+        const urlParams = new URLSearchParams(window.location.search);
+        const errorCode = urlParams.get('error');
+        const errorDescription = urlParams.get('error_description');
+        
+        if (errorCode) {
+          if (import.meta.env.DEV) {
+            console.error('OAuth error:', errorCode);
+          }
+          // Clean up URL and redirect
+          window.history.replaceState({}, document.title, '/login');
+          navigate('/login?error=oauth_failed');
+          return;
+        }
+        
         // Handle the OAuth callback
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Auth callback error:', error);
-          navigate('/login?error=auth_failed');
+          if (import.meta.env.DEV) {
+            console.error('Auth session error:', error.message);
+          }
+          window.history.replaceState({}, document.title, '/login');
+          navigate('/login?error=session_failed');
           return;
         }
 
-        if (data.session) {
-          console.log('Auth successful, redirecting to home');
+        if (data.session && data.session.user) {
+          if (import.meta.env.DEV) {
+            console.log('Auth successful for user:', data.session.user.email);
+          }
+          // Clean up URL and redirect to home
+          window.history.replaceState({}, document.title, '/');
           navigate('/');
         } else {
-          console.log('No session found, redirecting to login');
-          navigate('/login');
+          // Wait for Supabase to process the callback
+          setTimeout(async () => {
+            const { data: retryData } = await supabase.auth.getSession();
+            if (retryData.session) {
+              if (import.meta.env.DEV) {
+                console.log('Session established after retry');
+              }
+              window.history.replaceState({}, document.title, '/');
+              navigate('/');
+            } else {
+              if (import.meta.env.DEV) {
+                console.log('No session found after callback processing');
+              }
+              window.history.replaceState({}, document.title, '/login');
+              navigate('/login?error=no_session');
+            }
+          }, 1000);
         }
       } catch (error) {
-        console.error('Auth callback failed:', error);
-        navigate('/login?error=callback_failed');
+        if (import.meta.env.DEV) {
+          console.error('Auth callback failed:', error);
+        }
+        window.history.replaceState({}, document.title, '/login');
+        navigate('/login?error=callback_exception');
       }
     };
 
