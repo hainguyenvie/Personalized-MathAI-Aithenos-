@@ -18,9 +18,13 @@ export default function Login() {
 
   const handleGoogleSignIn = async () => {
     try {
+      console.log('🚀 Starting Google sign in...');
+      console.log('Current domain:', window.location.hostname);
+      console.log('Current origin:', window.location.origin);
+      
       await signInWithGoogle()
     } catch (error) {
-      console.error('Login failed:', error)
+      console.error('❌ Login failed:', error)
     }
   }
 

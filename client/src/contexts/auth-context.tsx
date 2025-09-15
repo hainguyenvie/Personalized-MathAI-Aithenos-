@@ -46,9 +46,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const baseURL = getBaseURL()
     const redirectURL = `${baseURL}/auth/callback`
     
-    if (import.meta.env.DEV) {
-      console.log('Auth redirect URL:', redirectURL)
-    }
+    console.log('🔗 Redirect URL being used:', redirectURL);
+    console.log('🌐 Base URL:', baseURL);
     
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -61,8 +60,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     })
     if (error) {
-      console.error('Error signing in with Google:', error)
+      console.error('❌ OAuth error:', error)
       throw error
+    } else {
+      console.log('✅ OAuth request sent successfully')
     }
   }
 
