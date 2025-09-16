@@ -1,3 +1,5 @@
+import { Star, Check, Play, Lock, Flame } from "lucide-react";
+
 export const mockUser = {
   id: "sample-user-1",
   username: "thanhnga",
@@ -18,7 +20,7 @@ export const mockLearningTopics = [
     description: "Đã hoàn thành • 12 bài học",
     progress: 100,
     status: "completed" as const,
-    icon: "check",
+    icon: Check,
   },
   {
     id: "topic-2", 
@@ -26,7 +28,7 @@ export const mockLearningTopics = [
     description: "Đang học • 8/15 bài học",
     progress: 53,
     status: "current" as const,
-    icon: "play",
+    icon: Play,
   },
   {
     id: "topic-3",
@@ -34,7 +36,7 @@ export const mockLearningTopics = [
     description: "Sẽ mở khóa sau • 20 bài học",
     progress: 0,
     status: "locked" as const,
-    icon: "lock",
+    icon: Lock,
   },
 ];
 
@@ -52,7 +54,7 @@ export const mockAchievements = [
     id: "streak-7",
     name: "Chuỗi 7 ngày",
     description: "Học liên tục 7 ngày",
-    icon: "fire",
+    icon: Flame,
     unlocked: true,
     progress: 7,
     maxProgress: 7,
@@ -63,7 +65,7 @@ export const mockAchievements = [
     id: "perfect-score",
     name: "Điểm số hoàn hảo", 
     description: "Đạt 10/10 điểm",
-    icon: "star",
+    icon: Star,
     unlocked: true,
     progress: 1,
     maxProgress: 1,
