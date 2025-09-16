@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Navigation from "@/components/navigation";
 import ChatWidget from "@/components/chat-widget";
+import { ChatProvider } from "@/contexts/chat-context";
 import DemoBanner from "@/components/demo-banner";
 import Home from "@/pages/home";
 import Assessment from "@/pages/assessment";
@@ -46,7 +47,8 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
+      <ChatProvider>
+        <TooltipProvider>
         <div className="min-h-screen bg-gray-50">
           <DemoBanner />
           <Navigation />
@@ -54,7 +56,8 @@ function App() {
           <ChatWidget />
           <Toaster />
         </div>
-      </TooltipProvider>
+        </TooltipProvider>
+      </ChatProvider>
     </QueryClientProvider>
   );
 }

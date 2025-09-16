@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Play, Clock, User, Eye, MessageCircle, Save, CheckCircle, ChevronRight } from "lucide-react";
+import { useChat } from "@/contexts/chat-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,6 +32,7 @@ const lessonProgress = [
 ];
 
 export default function Learning() {
+  const { openChat } = useChat();
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");
   const [showAnswer, setShowAnswer] = useState(false);
   const [notes, setNotes] = useState("");
@@ -368,7 +370,11 @@ export default function Learning() {
                 <p className="text-sm text-gray-600 mb-4">
                   Cần giúp đỡ với bài học? Hỏi tôi bất cứ điều gì!
                 </p>
-                <Button className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90">
+                <Button 
+                  onClick={openChat}
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90"
+                  data-testid="button-start-chat"
+                >
                   Bắt đầu chat
                 </Button>
               </CardContent>
