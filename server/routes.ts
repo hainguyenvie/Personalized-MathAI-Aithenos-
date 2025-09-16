@@ -4,10 +4,18 @@ import { storage } from "./storage";
 import { insertUserSchema, insertAssessmentSchema, insertGameScoreSchema, insertLearningPathSchema } from "@shared/schema";
 import { getChatResponse, generateMiniQuiz, buildOntologyContext } from "./openai";
 import adaptiveRoutes from "./adaptive-routes";
+import optimizedAdaptiveRoutes from "./optimized-adaptive-routes";
+import performanceRoutes from "./performance-routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Adaptive Learning routes
+  // Adaptive Learning routes (original)
   app.use("/api/adaptive", adaptiveRoutes);
+  
+  // Optimized Adaptive Learning routes
+  app.use("/api/adaptive-optimized", optimizedAdaptiveRoutes);
+  
+  // Performance monitoring routes
+  app.use("/api/performance", performanceRoutes);
 
   // Authentication routes
   app.post("/api/auth/register", async (req, res) => {
