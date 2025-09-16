@@ -94,6 +94,8 @@ export default function AdaptiveLearning() {
   const [tutorSession, setTutorSession] = useState<TutorSession | null>(null);
   const [currentHint, setCurrentHint] = useState<TutorHint | null>(null);
   const [studentResponse, setStudentResponse] = useState('');
+  const [studentName, setStudentName] = useState('');
+  const [selectedGrade, setSelectedGrade] = useState('12');
   const [tutorStep, setTutorStep] = useState(0);
   const [showTheory, setShowTheory] = useState(false);
   const [theoryContent, setTheoryContent] = useState('');
@@ -579,13 +581,13 @@ export default function AdaptiveLearning() {
                 <Input
                   id="studentName"
                   placeholder="Nhập tên của bạn"
-                  value={studentResponse}
-                  onChange={(e) => setStudentResponse(e.target.value)}
+                  value={studentName}
+                  onChange={(e) => setStudentName(e.target.value)}
                 />
               </div>
               <div>
                 <Label htmlFor="grade">Lớp</Label>
-                <Select onValueChange={(value) => setStudentResponse(value)}>
+                <Select value={selectedGrade} onValueChange={(value) => setSelectedGrade(value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Chọn lớp" />
                   </SelectTrigger>
@@ -597,8 +599,8 @@ export default function AdaptiveLearning() {
                 </Select>
               </div>
               <Button 
-                onClick={() => initializeSession(studentResponse, '12')}
-                disabled={loading || !studentResponse.trim()}
+                onClick={() => initializeSession(studentName, selectedGrade)}
+                disabled={loading || !studentName.trim()}
                 className="w-full h-12 text-lg font-semibold"
               >
                 {loading ? (
