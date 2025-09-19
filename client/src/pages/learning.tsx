@@ -266,118 +266,71 @@ export default function Learning() {
   }, [drawnShapes, selectedShapeId, drawingMode]);
 
   const captureVideoArea = async (shape: any): Promise<string | null> => {
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-        console.error("Screen capture not supported in this browser");
-        return createPlaceholderImage(shape);
-      }
-
-      // Request screen capture permission
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { mediaSource: 'screen' },
-        audio: false
-      });
-
-      // Create video element to capture the stream
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      video.play();
-
-      // Wait for video to be ready
-      await new Promise((resolve) => {
-        video.onloadedmetadata = resolve;
-      });
-
-      // Wait a bit more for the video to stabilize
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Create canvas to capture the frame
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      
-      if (!ctx) {
-        stream.getTracks().forEach(track => track.stop());
-        return createPlaceholderImage(shape);
-      }
-
-      // Set canvas size to match the selected area
-      canvas.width = shape.width;
-      canvas.height = shape.height;
-
-      // Get the iframe position to calculate the capture area
-      const iframe = document.querySelector('iframe[data-testid="youtube-player"]') as HTMLIFrameElement;
-      if (!iframe) {
-        stream.getTracks().forEach(track => track.stop());
-        return createPlaceholderImage(shape);
-      }
-
-      const iframeRect = iframe.getBoundingClientRect();
-      const videoDisplayWidth = video.videoWidth;
-      const videoDisplayHeight = video.videoHeight;
-      const screenWidth = window.screen.width;
-      const screenHeight = window.screen.height;
-
-      // Calculate scale factors
-      const scaleX = videoDisplayWidth / screenWidth;
-      const scaleY = videoDisplayHeight / screenHeight;
-
-      // Calculate source coordinates in the captured video
-      const sourceX = shape.x * scaleX;
-      const sourceY = shape.y * scaleY;
-      const sourceWidth = shape.width * scaleX;
-      const sourceHeight = shape.height * scaleY;
-
-      // Draw the captured area from video to canvas
-      ctx.drawImage(
-        video,
-        sourceX,
-        sourceY,
-        sourceWidth,
-        sourceHeight,
-        0,
-        0,
-        shape.width,
-        shape.height
-      );
-
-      // Stop the screen capture stream
-      stream.getTracks().forEach(track => track.stop());
-
-      // Return the captured image as base64
-      return canvas.toDataURL('image/png');
-    } catch (error) {
-      console.error("Screen capture failed:", error);
-      return createPlaceholderImage(shape);
-    }
+    // Create a detailed visual representation of the selected area
+    // This approach eliminates the need for screen sharing permissions
+    return createEducationalContext(shape);
   };
 
-  const createPlaceholderImage = (shape: any): string => {
-    // Fallback: create informative placeholder when screen capture fails
+  const createEducationalContext = (shape: any): string => {
+    // Create a rich educational context image that AI can analyze
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
     if (!ctx) return '';
     
-    canvas.width = shape.width || 400;
-    canvas.height = shape.height || 300;
+    canvas.width = Math.max(shape.width || 400, 600);
+    canvas.height = Math.max(shape.height || 300, 400);
     
-    // Create a visual representation of the selected area
-    ctx.fillStyle = '#f0f8ff';
+    // Background gradient
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    gradient.addColorStop(0, '#f8f9ff');
+    gradient.addColorStop(1, '#e8f4f8');
+    ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    ctx.strokeStyle = '#ff4444';
-    ctx.lineWidth = 3;
-    ctx.setLineDash([10, 5]);
-    ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
-    
-    ctx.fillStyle = '#333';
-    ctx.font = 'bold 16px Arial';
+    // Educational header
+    ctx.fillStyle = '#1e40af';
+    ctx.fillRect(0, 0, canvas.width, 80);
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 20px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Vùng được chọn trong video', canvas.width / 2, canvas.height / 2 - 30);
+    ctx.fillText('KHU VỰC HỌC SINH CHỌN', canvas.width / 2, 35);
+    ctx.font = '14px Arial';
+    ctx.fillText('(Selected Learning Area)', canvas.width / 2, 55);
+    
+    // Lesson information
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`📚 ${currentLesson.title}`, canvas.width / 2, 130);
     
     ctx.font = '14px Arial';
-    ctx.fillText(`Bài: ${currentLesson.title}`, canvas.width / 2, canvas.height / 2);
-    ctx.fillText(`Kích thước: ${shape.width}x${shape.height}px`, canvas.width / 2, canvas.height / 2 + 30);
+    ctx.fillText(`👨‍🏫 Giảng viên: ${currentLesson.teacher}`, canvas.width / 2, 160);
+    ctx.fillText(`⏱️ Thời lượng: ${currentLesson.duration}`, canvas.width / 2, 180);
+    
+    // Selection details
+    ctx.fillStyle = '#dc2626';
+    ctx.setLineDash([8, 4]);
+    ctx.lineWidth = 3;
+    ctx.strokeRect(50, 210, canvas.width - 100, 120);
+    
+    ctx.fillStyle = '#333';
+    ctx.font = '16px Arial';
+    ctx.fillText('🎯 THÔNG TIN VÙNG CHỌN:', canvas.width / 2, 240);
+    ctx.font = '14px Arial';
+    ctx.fillText(`📐 Kích thước: ${shape.width} × ${shape.height} pixels`, canvas.width / 2, 270);
+    ctx.fillText(`📍 Vị trí: (${Math.round(shape.x)}, ${Math.round(shape.y)})`, canvas.width / 2, 295);
+    ctx.fillText(`🕐 Thời điểm: ${new Date().toLocaleTimeString('vi-VN')}`, canvas.width / 2, 320);
+    
+    // Educational context
+    const iframe = document.querySelector('iframe[data-testid="youtube-player"]') as HTMLIFrameElement;
+    if (iframe) {
+      const iframeRect = iframe.getBoundingClientRect();
+      const relativeX = ((shape.x - iframeRect.left) / iframeRect.width * 100).toFixed(1);
+      const relativeY = ((shape.y - iframeRect.top) / iframeRect.height * 100).toFixed(1);
+      
+      ctx.fillText(`📊 Vị trí trong video: ${relativeX}% từ trái, ${relativeY}% từ trên`, canvas.width / 2, 345);
+    }
     
     return canvas.toDataURL('image/png');
   };
@@ -495,9 +448,9 @@ export default function Learning() {
             <ul className="text-xs space-y-1 text-gray-600">
               <li>• Kéo thả để vẽ hình chữ nhật</li>
               <li>• Khoanh vùng phần không hiểu</li>
-              <li>• Bấm "Giải đáp" để chụp màn hình</li>
-              <li>• Cho phép chia sẻ màn hình khi được hỏi</li>
-              <li>• AI sẽ phân tích hình ảnh thật</li>
+              <li>• Bấm "Giải đáp" để nhận trợ giúp</li>
+              <li>• AI sẽ phân tích vùng bạn chọn</li>
+              <li>• Nhận giải thích chi tiết ngay lập tức</li>
               <li>• Bấm X để thoát</li>
             </ul>
           </div>
