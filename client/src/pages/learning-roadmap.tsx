@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { 
   Trophy, Star, Flame, Target, Brain, Clock, Award, 
   CheckCircle, PlayCircle, Lock, ArrowRight, Zap, 
@@ -18,177 +20,92 @@ interface RoadmapProps {
 
 export default function LearningRoadmap({ userId = "sample-user-1" }: RoadmapProps) {
   const [activeTab, setActiveTab] = useState("roadmap");
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [learningPath, setLearningPath] = useState<any>(null);
-  const [achievements, setAchievements] = useState<any[]>([]);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
-    loadRoadmapData();
     // Show celebration on first load
     setTimeout(() => setShowCelebration(true), 500);
   }, [userId]);
 
-  const loadRoadmapData = async () => {
-    try {
-      setLoading(true);
-      
-      // Mock comprehensive data for demo
-      const mockProfile = {
-        id: userId,
-        name: "An Nguyễn",
-        level: 4,
-        totalXP: 2850,
-        nextLevelXP: 3500,
-        streak: 12,
-        totalStudyTime: "24h 15m",
-        completedTopics: 8,
-        totalTopics: 15,
-        strengths: ["Số học cơ bản", "Hình học"],
-        improving: ["Phân số", "Phương trình bậc 2"],
-        badge: "Học sinh xuất sắc",
-        rank: "Top 15% lớp 9A3"
-      };
-
-      const mockLearningPath = {
-        id: "path-1",
-        title: "Lộ trình cải thiện Toán học cá nhân",
-        description: "Lộ trình được thiết kế riêng dựa trên kết quả chẩn đoán của bạn",
-        totalWeeks: 6,
-        currentWeek: 2,
-        progress: 35,
-        estimatedCompletion: "2024-03-15",
-        difficulty: "Trung bình",
-        topics: [
-          {
-            id: "topic-1",
-            name: "Phân số và số thập phân",
-            description: "Củng cố kiến thức về phân số, chuyển đổi và phép tính",
-            status: "completed",
-            progress: 100,
-            lessons: 8,
-            completedLessons: 8,
-            xpReward: 240,
-            estimatedTime: "3 giờ",
-            difficulty: "Dễ",
-            prerequisites: [],
-            skills: ["Quy đồng phân số", "Phép cộng phân số", "Rút gọn phân số"]
-          },
-          {
-            id: "topic-2", 
-            name: "Hình học phẳng cơ bản",
-            description: "Chu vi, diện tích và tính chất các hình cơ bản",
-            status: "in-progress",
-            progress: 60,
-            lessons: 12,
-            completedLessons: 7,
-            xpReward: 360,
-            estimatedTime: "4.5 giờ",
-            difficulty: "Trung bình",
-            prerequisites: ["Phân số và số thập phân"],
-            skills: ["Chu vi hình chữ nhật", "Diện tích tam giác", "Định lý Pythagoras"]
-          },
-          {
-            id: "topic-3",
-            name: "Phương trình bậc nhất",
-            description: "Giải và ứng dụng phương trình bậc nhất một ẩn",
-            status: "locked",
-            progress: 0,
-            lessons: 10,
-            completedLessons: 0,
-            xpReward: 320,
-            estimatedTime: "4 giờ",
-            difficulty: "Trung bình",
-            prerequisites: ["Hình học phẳng cơ bản"],
-            skills: ["Chuyển vế", "Quy tắc dấu", "Bài toán có lời văn"]
-          },
-          {
-            id: "topic-4",
-            name: "Hệ phương trình",
-            description: "Giải hệ phương trình bậc nhất hai ẩn",
-            status: "locked",
-            progress: 0,
-            lessons: 15,
-            completedLessons: 0,
-            xpReward: 450,
-            estimatedTime: "6 giờ", 
-            difficulty: "Khó",
-            prerequisites: ["Phương trình bậc nhất"],
-            skills: ["Phương pháp thế", "Phương pháp cộng", "Ứng dụng thực tế"]
-          },
-          {
-            id: "topic-5",
-            name: "Phương trình bậc hai",
-            description: "Giải và phân tích phương trình bậc hai",
-            status: "locked",
-            progress: 0,
-            lessons: 18,
-            completedLessons: 0,
-            xpReward: 540,
-            estimatedTime: "7.5 giờ",
-            difficulty: "Khó",
-            prerequisites: ["Hệ phương trình"],
-            skills: ["Công thức nghiệm", "Biệt thức Delta", "Định lý Vieta"]
-          }
-        ]
-      };
-
-      const mockAchievements = [
-        {
-          id: "diagnostic_master",
-          name: "Chuyên gia Chẩn đoán",
-          description: "Hoàn thành bài kiểm tra chẩn đoán với điểm cao",
-          icon: "🎯",
-          rarity: "epic",
-          xpBonus: 100,
-          unlockedAt: new Date().toISOString(),
-          progress: 100,
-          maxProgress: 100
-        },
-        {
-          id: "quick_learner",
-          name: "Học Nhanh",
-          description: "Hoàn thành 3 bài học trong 1 ngày",
-          icon: "⚡",
-          rarity: "rare",
-          xpBonus: 75,
-          unlockedAt: new Date().toISOString(),
-          progress: 100,
-          maxProgress: 100
-        },
-        {
-          id: "streak_warrior",
-          name: "Chiến binh Chuỗi thắng",
-          description: "Duy trì chuỗi học 7 ngày liên tiếp",
-          icon: "🔥",
-          rarity: "legendary",
-          xpBonus: 200,
-          unlockedAt: null,
-          progress: 5,
-          maxProgress: 7
-        },
-        {
-          id: "problem_solver",
-          name: "Giải Quyết Vấn Đề",
-          description: "Giải đúng 50 bài toán khó",
-          icon: "🧩",
-          rarity: "epic",
-          xpBonus: 150,
-          unlockedAt: null,
-          progress: 23,
-          maxProgress: 50
+  // Fetch personalized roadmap data
+  const { data: roadmapData, isLoading, error } = useQuery({
+    queryKey: ['/api/learning-paths', userId, 'roadmap'],
+    queryFn: async () => {
+      const response = await fetch(`/api/learning-paths/${userId}/roadmap`);
+      if (!response.ok) {
+        // If no roadmap exists, generate one
+        if (response.status === 404) {
+          await generateRoadmap();
+          return null; // Will refetch after generation
         }
-      ];
+        throw new Error('Failed to fetch roadmap');
+      }
+      return response.json();
+    },
+    retry: false
+  });
 
-      setUserProfile(mockProfile);
-      setLearningPath(mockLearningPath);
-      setAchievements(mockAchievements);
-      
+  // Generate personalized roadmap
+  const generateRoadmapMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('/api/learning-paths/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/learning-paths', userId, 'roadmap'] });
+    }
+  });
+
+  const generateRoadmap = async () => {
+    await generateRoadmapMutation.mutateAsync();
+  };
+
+  // Update topic progress
+  const updateTopicMutation = useMutation({
+    mutationFn: async ({ topicId, status, progress }: { topicId: string, status: string, progress: number }) => {
+      if (!roadmapData?.learningPath?.id) return;
+      return apiRequest(`/api/learning-paths/${roadmapData.learningPath.id}/topic/${topicId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, progress })
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/learning-paths', userId, 'roadmap'] });
+    }
+  });
+
+  // Direct action handlers for interactive roadmap
+  const handleTopicAction = async (topicId: string, action: string) => {
+    try {
+      switch (action) {
+        case 'learn':
+          // Navigate to learning page for this topic
+          window.location.href = `/learning?topic=${topicId}`;
+          break;
+        case 'practice': 
+          // Navigate to practice page
+          window.location.href = `/practice?topic=${topicId}`;
+          break;
+        case 'quiz':
+          // Navigate to unit quiz
+          window.location.href = `/unit-quiz?topic=${topicId}`;
+          break;
+        case 'complete':
+          // Mark topic as completed
+          await updateTopicMutation.mutateAsync({ 
+            topicId, 
+            status: 'completed', 
+            progress: 100 
+          });
+          break;
+      }
     } catch (error) {
-      console.error("Error loading roadmap data:", error);
-    } finally {
-      setLoading(false);
+      console.error('Error handling topic action:', error);
     }
   };
 
@@ -219,7 +136,7 @@ export default function LearningRoadmap({ userId = "sample-user-1" }: RoadmapPro
     }
   };
 
-  if (loading) {
+  if (isLoading || generateRoadmapMutation.isPending) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
         <Card className="p-8 text-center">
@@ -228,11 +145,35 @@ export default function LearningRoadmap({ userId = "sample-user-1" }: RoadmapPro
             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
             className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto mb-4"
           />
-          <p className="text-gray-600 font-medium">Đang tạo lộ trình học tập cá nhân...</p>
+          <p className="text-gray-600 font-medium">
+            {generateRoadmapMutation.isPending 
+              ? "Đang tạo lộ trình học tập cá nhân dành riêng cho bạn..." 
+              : "Đang tải lộ trình học tập..."
+            }
+          </p>
+          {generateRoadmapMutation.isPending && (
+            <p className="text-sm text-gray-500 mt-2">
+              Đang phân tích kết quả chẩn đoán và tạo nội dung phù hợp
+            </p>
+          )}
         </Card>
       </div>
     );
   }
+
+  // Extract data from API response with safe fallbacks
+  const userProfile = {
+    ...roadmapData?.user,
+    name: roadmapData?.user?.fullName || "Bạn học",
+    level: 1,
+    totalXP: 0,
+    streak: 1,
+    badge: "Người học mới",
+    rank: "Đang cải thiện"
+  };
+  const learningPath = roadmapData?.learningPath;
+  const personalizedReasons = roadmapData?.personalizedReasons;
+  const topics = learningPath ? JSON.parse(learningPath.topics) : [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
