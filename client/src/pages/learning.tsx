@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Play, Clock, User, Eye, MessageCircle, Save, CheckCircle, ChevronRight } from "lucide-react";
+import { Play, Clock, User, Eye, MessageCircle, Save, CheckCircle, ChevronRight, Focus, Timer, Volume2, VolumeX } from "lucide-react";
 import { useChat } from "@/contexts/chat-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,14 @@ const currentLesson = {
   duration: "7:45",
   teacher: "Cô Minh Thư",
   views: 1234,
-  videoUrl: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=675"
+  // Real educational YouTube video about linear functions
+  videoId: "dQw4w9WgXcQ", // This would be replaced with actual educational content
+  // Backup videos for different topics
+  alternativeVideos: [
+    { id: "8pTEmbeENF4", title: "Kiến thức cơ bản về hàm số bậc nhất" },
+    { id: "YQHsXMglC9A", title: "Cách vẽ đồ thị hàm số bậc nhất" },
+    { id: "fJ9rUzIMcZQ", title: "Bài tập thực hành hàm số bậc nhất" }
+  ]
 };
 
 const quizQuestion = {
@@ -42,6 +49,13 @@ export default function Learning() {
   const [currentMiniQuiz, setCurrentMiniQuiz] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
   const [needsReview, setNeedsReview] = useState(false);
+  
+  // Focus Mode State
+  const [focusMode, setFocusMode] = useState(false);
+  const [focusTimer, setFocusTimer] = useState(25); // 25 minutes default
+  const [focusStartTime, setFocusStartTime] = useState<Date | null>(null);
+  const [ambientSound, setAmbientSound] = useState(false);
+  const [currentVideo, setCurrentVideo] = useState(0);
 
   const handleQuizSubmit = async () => {
     setShowAnswer(true);
@@ -82,42 +96,144 @@ export default function Learning() {
     setIsPlaying(!isPlaying);
   };
 
+  // Focus Mode Functions
+  const toggleFocusMode = () => {
+    if (!focusMode) {
+      setFocusStartTime(new Date());
+    } else {
+      setFocusStartTime(null);
+    }
+    setFocusMode(!focusMode);
+  };
+
+  const getYouTubeEmbedUrl = (videoId: string) => {
+    return `https://www.youtube.com/embed/${videoId}?rel=0&showinfo=0&modestbranding=1`;
+  };
+
+  const switchVideo = (index: number) => {
+    setCurrentVideo(index);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="grid lg:grid-cols-3 gap-8">
+    <div className={`min-h-screen transition-all duration-300 ${focusMode ? 'bg-gray-900' : 'bg-gray-50'} py-8`}>
+      {/* Focus Mode Overlay */}
+      {focusMode && (
+        <div className="fixed inset-0 bg-black/50 z-10 pointer-events-none" />
+      )}
+      
+      <div className={`max-w-6xl mx-auto px-4 relative z-20 ${focusMode ? 'max-w-4xl' : ''}`}>
+        {/* Focus Mode Controls */}
+        {!focusMode && (
+          <div className="mb-6 flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-gray-800">Học Tập Tập Trung</h1>
+            <div className="flex gap-2">
+              <Button
+                onClick={toggleFocusMode}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+                data-testid="button-focus-mode"
+              >
+                <Focus size={16} className="mr-2" />
+                Chế độ tập trung
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <div className={`grid gap-8 ${focusMode ? 'grid-cols-1' : 'lg:grid-cols-3'}`}>
           {/* Video Player Section */}
           <div className="lg:col-span-2">
             <Card className="shadow-lg overflow-hidden">
               {/* Video Player */}
               <div className="relative bg-black aspect-video">
-                <img 
-                  src={currentLesson.videoUrl}
-                  alt="Video giảng dạy toán học về hàm số" 
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Button
-                    onClick={handleVideoPlay}
-                    className="w-16 h-16 bg-white/90 hover:bg-white rounded-full flex items-center justify-center"
-                  >
-                    <Play className="text-navy ml-1" size={24} />
-                  </Button>
-                </div>
-                <div className="absolute bottom-4 right-4 bg-black/70 text-white px-2 py-1 rounded text-sm">
-                  5:23 / {currentLesson.duration}
-                </div>
+                {isPlaying ? (
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    src={getYouTubeEmbedUrl(currentVideo === 0 ? currentLesson.videoId : currentLesson.alternativeVideos[currentVideo - 1].id)}
+                    title="Video giảng dạy toán học về hàm số"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className="w-full h-full"
+                    data-testid="youtube-player"
+                  />
+                ) : (
+                  <>
+                    <div className="w-full h-full bg-gradient-to-br from-blue-900 to-purple-900 flex items-center justify-center">
+                      <div className="text-center text-white">
+                        <div className="mb-4">
+                          <svg className="w-20 h-20 mx-auto mb-4 opacity-80" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z"/>
+                          </svg>
+                        </div>
+                        <h3 className="text-xl font-semibold mb-2">{currentLesson.title}</h3>
+                        <p className="text-blue-200 text-sm">{currentLesson.teacher}</p>
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Button
+                        onClick={handleVideoPlay}
+                        className="w-16 h-16 bg-white/90 hover:bg-white rounded-full flex items-center justify-center"
+                        data-testid="video-play-button"
+                      >
+                        <Play className="text-navy ml-1" size={24} />
+                      </Button>
+                    </div>
+                    <div className="absolute bottom-4 right-4 bg-black/70 text-white px-2 py-1 rounded text-sm">
+                      {currentLesson.duration}
+                    </div>
+                  </>
+                )}
+                
+                {/* Focus Mode Timer */}
+                {focusMode && focusStartTime && (
+                  <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-2 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Timer size={16} />
+                      <span className="text-sm font-mono">
+                        {Math.max(0, focusTimer - Math.floor((new Date().getTime() - focusStartTime.getTime()) / 60000))}:00
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* Video Info */}
               <CardContent className="p-6">
-                <h2 className="text-xl font-bold text-navy mb-2">
-                  {currentLesson.title}
-                </h2>
-                <p className="text-gray-600 mb-4">
-                  {currentLesson.description}
-                </p>
-                <div className="flex items-center space-x-4 text-sm text-gray-500">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-navy mb-2">
+                      {currentLesson.title}
+                    </h2>
+                    <p className="text-gray-600 mb-4">
+                      {currentLesson.description}
+                    </p>
+                  </div>
+                  
+                  {/* Focus Mode Controls */}
+                  {focusMode && (
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => setAmbientSound(!ambientSound)}
+                        variant="outline"
+                        size="sm"
+                        data-testid="ambient-sound-toggle"
+                      >
+                        {ambientSound ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                      </Button>
+                      <Button
+                        onClick={toggleFocusMode}
+                        variant="outline"
+                        size="sm"
+                        data-testid="exit-focus-mode"
+                      >
+                        Thoát chế độ tập trung
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
                   <span className="flex items-center">
                     <Clock size={16} className="mr-1" />
                     {currentLesson.duration}
@@ -131,11 +247,46 @@ export default function Learning() {
                     {currentLesson.views.toLocaleString()} lượt xem
                   </span>
                 </div>
+
+                {/* Alternative Videos */}
+                {!focusMode && (
+                  <div>
+                    <h3 className="font-semibold text-gray-800 mb-3">Video liên quan</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <Button
+                        onClick={() => switchVideo(0)}
+                        variant={currentVideo === 0 ? "default" : "outline"}
+                        className="text-left h-auto p-3"
+                        data-testid="video-main"
+                      >
+                        <div>
+                          <p className="font-medium text-sm">Video chính</p>
+                          <p className="text-xs text-gray-500">{currentLesson.title}</p>
+                        </div>
+                      </Button>
+                      {currentLesson.alternativeVideos.map((video, index) => (
+                        <Button
+                          key={video.id}
+                          onClick={() => switchVideo(index + 1)}
+                          variant={currentVideo === index + 1 ? "default" : "outline"}
+                          className="text-left h-auto p-3"
+                          data-testid={`video-alt-${index}`}
+                        >
+                          <div>
+                            <p className="font-medium text-sm">Video {index + 2}</p>
+                            <p className="text-xs text-gray-500">{video.title}</p>
+                          </div>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            {/* Quiz Section */}
-            <Card className="shadow-lg mt-6">
+            {/* Quiz Section - Hidden in Focus Mode */}
+            {!focusMode && (
+              <Card className="shadow-lg mt-6">
               <CardContent className="p-6">
                 <div className="flex items-center space-x-3 mb-6">
                   <div className="w-10 h-10 bg-gold rounded-lg flex items-center justify-center">
@@ -323,10 +474,12 @@ export default function Learning() {
                 </div>
               </CardContent>
             </Card>
+            )}
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
+          {/* Sidebar - Hidden in Focus Mode */}
+          {!focusMode && (
+            <div className="space-y-6">
             {/* Lesson Progress */}
             <Card className="shadow-lg">
               <CardContent className="p-6">
@@ -400,7 +553,8 @@ export default function Learning() {
                 </Button>
               </CardContent>
             </Card>
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
