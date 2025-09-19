@@ -4,12 +4,17 @@ import { useChat } from "@/contexts/chat-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Link } from "wouter";
 
 interface ChatMessage {
   id: string;
   text: string;
   isBot: boolean;
   timestamp: Date;
+  cta?: {
+    text: string;
+    href: string;
+  };
 }
 
 export default function ChatWidget() {
@@ -17,7 +22,7 @@ export default function ChatWidget() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
-      text: "Xin chào! Tôi là trợ lý AI của bạn. Tôi có thể giúp gì cho bạn hôm nay?",
+      text: "Chào bạn học, hôm nay bạn muốn học cái gì theo lộ trình được thiết kế dành riêng cho bạn nhỉ",
       isBot: true,
       timestamp: new Date(),
     }
@@ -64,6 +69,7 @@ export default function ChatWidget() {
         text: data.response || "Xin lỗi, tôi không thể trả lời câu hỏi này lúc này.",
         isBot: true,
         timestamp: new Date(),
+        cta: data.cta || undefined,
       };
       
       setMessages(prev => [...prev, botResponse]);
@@ -129,7 +135,20 @@ export default function ChatWidget() {
                     message.isBot ? 'bg-gray-100' : 'bg-teal text-white ml-8'
                   } p-3 rounded-lg`}
                 >
-                  <p className="text-sm">{message.text}</p>
+                  <p className="text-sm" data-testid={`message-text-${message.id}`}>{message.text}</p>
+                  {message.cta && (
+                    <div className="mt-3">
+                      <Link href={message.cta.href}>
+                        <Button 
+                          size="sm" 
+                          className="bg-purple-500 hover:bg-purple-600 text-white"
+                          data-testid={`cta-button-${message.id}`}
+                        >
+                          {message.cta.text}
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

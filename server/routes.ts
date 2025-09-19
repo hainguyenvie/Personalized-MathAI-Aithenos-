@@ -162,6 +162,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!message) {
         return res.status(400).json({ message: "Message is required" });
       }
+
+      // Check for learning intent keywords
+      const learningKeywords = ['muốn học', 'muốn được học', 'học môn', 'học', 'tôi muốn học', 'em muốn học', 'hôm nay tôi muốn', 'hôm nay em muốn'];
+      const messageLower = message.toLowerCase();
+      const hasLearningIntent = learningKeywords.some(keyword => messageLower.includes(keyword));
+
+      if (hasLearningIntent) {
+        return res.json({ 
+          response: "Tôi rất sẵn lòng được giúp bạn! Hãy bấm vào tính năng để tôi được hiểu bạn và tạo lộ trình học tập phù hợp nhất nhé! 🎯✨",
+          cta: {
+            text: "Bắt đầu cá nhân hoá",
+            href: "/onboarding"
+          }
+        });
+      }
+
       const augmented = [context, buildOntologyContext(context)].filter(Boolean).join("\n\n");
       const response = await getChatResponse(message, augmented, errorPatterns);
       res.json({ response });
