@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Play, Clock, User, Eye, MessageCircle, Save, CheckCircle, ChevronRight, Focus, Timer, Volume2, VolumeX } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Play, Clock, User, Eye, MessageCircle, Save, CheckCircle, ChevronRight, Pen, Crop, Send, Eraser, RotateCcw, X } from "lucide-react";
 import { useChat } from "@/contexts/chat-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,15 +12,15 @@ const currentLesson = {
   title: "Bài 8: Đồ thị hàm số bậc nhất",
   description: "Học cách vẽ và phân tích đồ thị của hàm số bậc nhất y = ax + b",
   duration: "7:45",
-  teacher: "Cô Minh Thư",
+  teacher: "Khan Academy",
   views: 1234,
-  // Real educational YouTube video about linear functions
-  videoId: "dQw4w9WgXcQ", // This would be replaced with actual educational content
-  // Backup videos for different topics
+  // Real educational YouTube videos about linear functions
+  videoId: "NyDDRzaKJck", // Khan Academy: Introduction to Linear Functions
+  // Educational math videos from famous channels
   alternativeVideos: [
-    { id: "8pTEmbeENF4", title: "Kiến thức cơ bản về hàm số bậc nhất" },
-    { id: "YQHsXMglC9A", title: "Cách vẽ đồ thị hàm số bậc nhất" },
-    { id: "fJ9rUzIMcZQ", title: "Bài tập thực hành hàm số bậc nhất" }
+    { id: "x_NzXUpBdHE", title: "Slope and Linear Functions - Khan Academy" },
+    { id: "BQZ64H3dkkM", title: "Graphing Linear Equations - Professor Leonard" },
+    { id: "YQHsXMglC9A", title: "Linear Functions Word Problems - Khan Academy" }
   ]
 };
 
@@ -49,13 +49,17 @@ export default function Learning() {
   const [currentMiniQuiz, setCurrentMiniQuiz] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
   const [needsReview, setNeedsReview] = useState(false);
-  
-  // Focus Mode State
-  const [focusMode, setFocusMode] = useState(false);
-  const [focusTimer, setFocusTimer] = useState(25); // 25 minutes default
-  const [focusStartTime, setFocusStartTime] = useState<Date | null>(null);
-  const [ambientSound, setAmbientSound] = useState(false);
   const [currentVideo, setCurrentVideo] = useState(0);
+  
+  // Drawing Mode State
+  const [drawingMode, setDrawingMode] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [drawnArea, setDrawnArea] = useState<string | null>(null);
+  const [showDrawingControls, setShowDrawingControls] = useState(false);
+  const [brushSize, setBrushSize] = useState(3);
+  const [isErasing, setIsErasing] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [lastPoint, setLastPoint] = useState<{x: number, y: number} | null>(null);
 
   const handleQuizSubmit = async () => {
     setShowAnswer(true);
@@ -96,16 +100,6 @@ export default function Learning() {
     setIsPlaying(!isPlaying);
   };
 
-  // Focus Mode Functions
-  const toggleFocusMode = () => {
-    if (!focusMode) {
-      setFocusStartTime(new Date());
-    } else {
-      setFocusStartTime(null);
-    }
-    setFocusMode(!focusMode);
-  };
-
   const getYouTubeEmbedUrl = (videoId: string) => {
     return `https://www.youtube.com/embed/${videoId}?rel=0&showinfo=0&modestbranding=1`;
   };
@@ -114,32 +108,262 @@ export default function Learning() {
     setCurrentVideo(index);
   };
 
-  return (
-    <div className={`min-h-screen transition-all duration-300 ${focusMode ? 'bg-gray-900' : 'bg-gray-50'} py-8`}>
-      {/* Focus Mode Overlay */}
-      {focusMode && (
-        <div className="fixed inset-0 bg-black/50 z-10 pointer-events-none" />
-      )}
+  // Drawing Functions
+  const toggleDrawingMode = () => {
+    setDrawingMode(!drawingMode);
+    setShowDrawingControls(!drawingMode);
+    if (!drawingMode) {
+      // Initialize canvas
+      setTimeout(() => setupCanvas(), 100);
+    }
+  };
+
+  const setupCanvas = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Set canvas size to window size
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        // Set initial drawing styles
+        ctx.lineWidth = brushSize;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = isErasing ? 'rgba(255,255,255,1)' : 'rgba(255,0,0,0.8)';
+        ctx.globalCompositeOperation = isErasing ? 'destination-out' : 'source-over';
+      }
+    }
+  };
+
+  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    
+    const point = {
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    };
+    
+    setIsDrawing(true);
+    setLastPoint(point);
+  };
+
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawing || !lastPoint) return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    
+    const currentPoint = {
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    };
+    
+    // Draw line from last point to current point
+    ctx.beginPath();
+    ctx.moveTo(lastPoint.x, lastPoint.y);
+    ctx.lineTo(currentPoint.x, currentPoint.y);
+    ctx.stroke();
+    
+    setLastPoint(currentPoint);
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+    setLastPoint(null);
+    
+    // Save the drawing
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const imageData = canvas.toDataURL('image/png');
+      setDrawnArea(imageData);
+    }
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+    setDrawnArea(null);
+  };
+
+  const toggleEraser = () => {
+    setIsErasing(!isErasing);
+    setupCanvas(); // Update canvas settings
+  };
+
+  // Update canvas when brush size or eraser mode changes
+  useEffect(() => {
+    if (drawingMode) {
+      setupCanvas();
+    }
+  }, [brushSize, isErasing, drawingMode]);
+
+  const sendDrawingToChatbot = async () => {
+    if (drawnArea) {
+      // Send the drawn area to the chatbot
+      const message = "Tôi đã vẽ một phần không hiểu trong bài học. Bạn có thể giải thích giúp tôi không?";
       
-      <div className={`max-w-6xl mx-auto px-4 relative z-20 ${focusMode ? 'max-w-4xl' : ''}`}>
-        {/* Focus Mode Controls */}
-        {!focusMode && (
-          <div className="mb-6 flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-800">Học Tập Tập Trung</h1>
-            <div className="flex gap-2">
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            message,
+            context: `User drew an area they don't understand in the lesson: ${currentLesson.title}`,
+            imageData: drawnArea
+          }),
+        });
+        
+        const data = await response.json();
+        console.log("Chatbot response:", data.response);
+        
+        // Clear the drawing and open chat
+        setDrawnArea(null);
+        setDrawingMode(false);
+        setShowDrawingControls(false);
+        
+        // Open the chat widget to show the response
+        openChat();
+      } catch (error) {
+        console.error("Failed to send drawing to chatbot:", error);
+      }
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8 relative">
+      {/* Drawing Canvas Overlay */}
+      {drawingMode && (
+        <div className="fixed inset-0 z-50 bg-black/20">
+          <canvas
+            ref={canvasRef}
+            className={`absolute inset-0 w-full h-full ${isErasing ? 'cursor-cell' : 'cursor-crosshair'}`}
+            onMouseDown={startDrawing}
+            onMouseMove={draw}
+            onMouseUp={stopDrawing}
+            onMouseLeave={stopDrawing}
+            onTouchStart={startDrawing}
+            onTouchMove={draw}
+            onTouchEnd={stopDrawing}
+            data-testid="drawing-canvas"
+          />
+          
+          {/* Close Button */}
+          <Button
+            onClick={toggleDrawingMode}
+            className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white rounded-full p-2"
+            size="sm"
+            data-testid="close-drawing-mode"
+          >
+            <X size={20} />
+          </Button>
+          
+          {/* Drawing Controls */}
+          <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 space-y-3">
+            <div className="flex items-center gap-2">
               <Button
-                onClick={toggleFocusMode}
-                className="bg-purple-600 hover:bg-purple-700 text-white"
-                data-testid="button-focus-mode"
+                onClick={toggleEraser}
+                size="sm"
+                variant={isErasing ? "default" : "outline"}
+                data-testid="eraser-toggle"
               >
-                <Focus size={16} className="mr-2" />
-                Chế độ tập trung
+                {isErasing ? <Pen size={16} /> : <Eraser size={16} />}
+              </Button>
+              <Button
+                onClick={clearCanvas}
+                size="sm"
+                variant="outline"
+                data-testid="clear-canvas"
+              >
+                <RotateCcw size={16} />
               </Button>
             </div>
+            
+            <div className="space-y-2">
+              <label className="text-xs font-medium">Độ dày nét</label>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                value={brushSize}
+                onChange={(e) => setBrushSize(Number(e.target.value))}
+                className="w-full"
+                data-testid="brush-size-slider"
+              />
+              <div className="text-xs text-center">{brushSize}px</div>
+            </div>
+            
+            {/* Send Drawing Button */}
+            {drawnArea && (
+              <Button
+                onClick={sendDrawingToChatbot}
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                size="sm"
+                data-testid="send-drawing"
+              >
+                <Send size={16} className="mr-2" />
+                Giải đáp
+              </Button>
+            )}
           </div>
-        )}
+          
+          {/* Instructions */}
+          <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-xs">
+            <h3 className="font-semibold text-sm mb-2">Hướng dẫn vẽ</h3>
+            <ul className="text-xs space-y-1 text-gray-600">
+              <li>• Vẽ lên phần không hiểu</li>
+              <li>• Sử dụng tẩy để sửa</li>
+              <li>• Bấm "Giải đáp" khi hoàn thành</li>
+              <li>• Bấm X để thoát</li>
+            </ul>
+          </div>
+        </div>
+      )}
+      
+      <div className="max-w-6xl mx-auto px-4">
+        {/* Header with Drawing Controls */}
+        <div className="mb-6 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-800">Học Tập Thông Minh</h1>
+          <div className="flex gap-2">
+            <Button
+              onClick={toggleDrawingMode}
+              className={`${drawingMode ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
+              data-testid="button-drawing-mode"
+            >
+              <Pen size={16} className="mr-2" />
+              {drawingMode ? 'Thoát vẽ' : 'Vẽ để hỏi'}
+            </Button>
+            {drawnArea && (
+              <Button
+                onClick={sendDrawingToChatbot}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                data-testid="button-ask-drawing"
+              >
+                <Send size={16} className="mr-2" />
+                Giải đáp
+              </Button>
+            )}
+          </div>
+        </div>
 
-        <div className={`grid gap-8 ${focusMode ? 'grid-cols-1' : 'lg:grid-cols-3'}`}>
+        <div className="grid lg:grid-cols-3 gap-8">
           {/* Video Player Section */}
           <div className="lg:col-span-2">
             <Card className="shadow-lg overflow-hidden">
@@ -185,52 +409,17 @@ export default function Learning() {
                   </>
                 )}
                 
-                {/* Focus Mode Timer */}
-                {focusMode && focusStartTime && (
-                  <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-2 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <Timer size={16} />
-                      <span className="text-sm font-mono">
-                        {Math.max(0, focusTimer - Math.floor((new Date().getTime() - focusStartTime.getTime()) / 60000))}:00
-                      </span>
-                    </div>
-                  </div>
-                )}
               </div>
               
               {/* Video Info */}
               <CardContent className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h2 className="text-xl font-bold text-navy mb-2">
-                      {currentLesson.title}
-                    </h2>
-                    <p className="text-gray-600 mb-4">
-                      {currentLesson.description}
-                    </p>
-                  </div>
-                  
-                  {/* Focus Mode Controls */}
-                  {focusMode && (
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => setAmbientSound(!ambientSound)}
-                        variant="outline"
-                        size="sm"
-                        data-testid="ambient-sound-toggle"
-                      >
-                        {ambientSound ? <VolumeX size={16} /> : <Volume2 size={16} />}
-                      </Button>
-                      <Button
-                        onClick={toggleFocusMode}
-                        variant="outline"
-                        size="sm"
-                        data-testid="exit-focus-mode"
-                      >
-                        Thoát chế độ tập trung
-                      </Button>
-                    </div>
-                  )}
+                <div>
+                  <h2 className="text-xl font-bold text-navy mb-2">
+                    {currentLesson.title}
+                  </h2>
+                  <p className="text-gray-600 mb-4">
+                    {currentLesson.description}
+                  </p>
                 </div>
 
                 <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
@@ -249,44 +438,41 @@ export default function Learning() {
                 </div>
 
                 {/* Alternative Videos */}
-                {!focusMode && (
-                  <div>
-                    <h3 className="font-semibold text-gray-800 mb-3">Video liên quan</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <h3 className="font-semibold text-gray-800 mb-3">Video liên quan</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <Button
+                      onClick={() => switchVideo(0)}
+                      variant={currentVideo === 0 ? "default" : "outline"}
+                      className="text-left h-auto p-3"
+                      data-testid="video-main"
+                    >
+                      <div>
+                        <p className="font-medium text-sm">Video chính</p>
+                        <p className="text-xs text-gray-500">{currentLesson.title}</p>
+                      </div>
+                    </Button>
+                    {currentLesson.alternativeVideos.map((video, index) => (
                       <Button
-                        onClick={() => switchVideo(0)}
-                        variant={currentVideo === 0 ? "default" : "outline"}
+                        key={video.id}
+                        onClick={() => switchVideo(index + 1)}
+                        variant={currentVideo === index + 1 ? "default" : "outline"}
                         className="text-left h-auto p-3"
-                        data-testid="video-main"
+                        data-testid={`video-alt-${index}`}
                       >
                         <div>
-                          <p className="font-medium text-sm">Video chính</p>
-                          <p className="text-xs text-gray-500">{currentLesson.title}</p>
+                          <p className="font-medium text-sm">Video {index + 2}</p>
+                          <p className="text-xs text-gray-500">{video.title}</p>
                         </div>
                       </Button>
-                      {currentLesson.alternativeVideos.map((video, index) => (
-                        <Button
-                          key={video.id}
-                          onClick={() => switchVideo(index + 1)}
-                          variant={currentVideo === index + 1 ? "default" : "outline"}
-                          className="text-left h-auto p-3"
-                          data-testid={`video-alt-${index}`}
-                        >
-                          <div>
-                            <p className="font-medium text-sm">Video {index + 2}</p>
-                            <p className="text-xs text-gray-500">{video.title}</p>
-                          </div>
-                        </Button>
-                      ))}
-                    </div>
+                    ))}
                   </div>
-                )}
+                </div>
               </CardContent>
             </Card>
 
-            {/* Quiz Section - Hidden in Focus Mode */}
-            {!focusMode && (
-              <Card className="shadow-lg mt-6">
+            {/* Quiz Section */}
+            <Card className="shadow-lg mt-6">
               <CardContent className="p-6">
                 <div className="flex items-center space-x-3 mb-6">
                   <div className="w-10 h-10 bg-gold rounded-lg flex items-center justify-center">
@@ -474,12 +660,10 @@ export default function Learning() {
                 </div>
               </CardContent>
             </Card>
-            )}
           </div>
 
-          {/* Sidebar - Hidden in Focus Mode */}
-          {!focusMode && (
-            <div className="space-y-6">
+          {/* Sidebar */}
+          <div className="space-y-6">
             {/* Lesson Progress */}
             <Card className="shadow-lg">
               <CardContent className="p-6">
@@ -553,8 +737,7 @@ export default function Learning() {
                 </Button>
               </CardContent>
             </Card>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
