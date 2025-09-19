@@ -11,6 +11,7 @@ import {
   Map, Route, Flag, Rocket, Crown, Shield
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import CreativeRoadmap from "@/components/creative-roadmap";
 
 interface RoadmapProps {
   userId?: string;
@@ -351,168 +352,27 @@ export default function LearningRoadmap({ userId = "sample-user-1" }: RoadmapPro
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <Card className="shadow-xl border-0 bg-white/95 backdrop-blur-sm mb-8">
-              <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
-                <CardTitle className="text-2xl font-bold flex items-center">
-                  <Route size={28} className="mr-3" />
-                  {learningPath?.title}
-                </CardTitle>
-                <p className="text-indigo-100">{learningPath?.description}</p>
-              </CardHeader>
-              
-              <CardContent className="p-6">
-                <div className="grid md:grid-cols-3 gap-6 mb-8">
-                  <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
-                    <Calendar className="mx-auto mb-2 text-blue-600" size={24} />
-                    <div className="text-2xl font-bold text-blue-600">{learningPath?.totalWeeks} tuần</div>
-                    <div className="text-sm text-blue-500">Thời gian dự kiến</div>
-                  </div>
-                  
-                  <div className="text-center p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl">
-                    <TrendingUp className="mx-auto mb-2 text-green-600" size={24} />
-                    <div className="text-2xl font-bold text-green-600">{learningPath?.progress}%</div>
-                    <div className="text-sm text-green-500">Hoàn thành</div>
-                  </div>
-                  
-                  <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl">
-                    <Target className="mx-auto mb-2 text-purple-600" size={24} />
-                    <div className="text-2xl font-bold text-purple-600">{learningPath?.difficulty}</div>
-                    <div className="text-sm text-purple-500">Độ khó</div>
-                  </div>
-                </div>
+            <CreativeRoadmap
+              title={learningPath?.title}
+              description={learningPath?.description}
+              totalWeeks={learningPath?.totalWeeks}
+              currentWeek={learningPath?.currentWeek}
+              overallProgress={learningPath?.progress}
+              difficulty={learningPath?.difficulty}
+              estimatedCompletion={new Date(learningPath?.estimatedCompletion).toLocaleDateString('vi-VN')}
+              milestones={learningPath?.topics?.map((topic: any, index: number) => ({
+                id: topic.id,
+                title: topic.name,
+                description: topic.description,
+                status: topic.status,
+                week: index + 1,
+                progress: topic.progress,
+                skills: topic.skills,
+                xpReward: topic.xpReward,
+                estimatedHours: parseFloat(topic.estimatedTime?.replace(/[^\d.]/g, '') || '0')
+              }))}
+            />
 
-                <div className="mb-6">
-                  <h3 className="text-lg font-bold text-gray-800 mb-3">Tiến độ tổng quát</h3>
-                  <Progress value={learningPath?.progress} className="mb-2" />
-                  <div className="text-sm text-gray-600">
-                    Tuần {learningPath?.currentWeek} / {learningPath?.totalWeeks} • 
-                    Dự kiến hoàn thành: {new Date(learningPath?.estimatedCompletion).toLocaleDateString('vi-VN')}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Learning Topics */}
-            <div className="space-y-6">
-              {learningPath?.topics.map((topic: any, index: number) => {
-                const StatusIcon = getStatusIcon(topic.status);
-                const isLocked = topic.status === "locked";
-                const isCompleted = topic.status === "completed";
-                const isInProgress = topic.status === "in-progress";
-                
-                return (
-                  <motion.div
-                    key={topic.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <Card className={`shadow-lg border-0 overflow-hidden transition-all duration-300 hover:shadow-xl ${
-                      isLocked ? 'opacity-75' : 'hover:scale-[1.02]'
-                    }`}>
-                      <div className="flex">
-                        {/* Left Side - Status & Number */}
-                        <div className={`w-20 ${getStatusColor(topic.status)} flex flex-col items-center justify-center text-white`}>
-                          <div className="text-2xl font-bold mb-1">{index + 1}</div>
-                          <StatusIcon size={20} />
-                        </div>
-
-                        {/* Main Content */}
-                        <div className="flex-1 p-6">
-                          <div className="flex items-start justify-between mb-4">
-                            <div>
-                              <h3 className="text-xl font-bold text-gray-800 mb-2">{topic.name}</h3>
-                              <p className="text-gray-600 mb-3">{topic.description}</p>
-                              
-                              <div className="flex flex-wrap gap-2 mb-3">
-                                <Badge variant="outline" className={getDifficultyColor(topic.difficulty)}>
-                                  {topic.difficulty}
-                                </Badge>
-                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                  <Clock size={12} className="mr-1" />
-                                  {topic.estimatedTime}
-                                </Badge>
-                                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                                  <Star size={12} className="mr-1" />
-                                  {topic.xpReward} XP
-                                </Badge>
-                              </div>
-                            </div>
-
-                            <div className="text-right">
-                              <div className="text-2xl font-bold text-indigo-600">
-                                {topic.completedLessons}/{topic.lessons}
-                              </div>
-                              <div className="text-sm text-gray-500">bài học</div>
-                            </div>
-                          </div>
-
-                          {/* Progress Bar */}
-                          <div className="mb-4">
-                            <Progress value={topic.progress} className="mb-2" />
-                          </div>
-
-                          {/* Skills */}
-                          <div className="mb-4">
-                            <div className="text-sm font-medium text-gray-700 mb-2">Kỹ năng sẽ học:</div>
-                            <div className="flex flex-wrap gap-2">
-                              {topic.skills.map((skill: string, skillIndex: number) => (
-                                <span 
-                                  key={skillIndex}
-                                  className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full"
-                                >
-                                  {skill}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Action Button */}
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm text-gray-500">
-                              {topic.prerequisites.length > 0 && (
-                                <span>Cần hoàn thành: {topic.prerequisites.join(", ")}</span>
-                              )}
-                            </div>
-                            
-                            <Button
-                              disabled={isLocked}
-                              className={`${
-                                isCompleted ? 'bg-green-600 hover:bg-green-700' :
-                                isInProgress ? 'bg-blue-600 hover:bg-blue-700' :
-                                'bg-gray-400'
-                              } text-white transition-colors`}
-                              onClick={() => {
-                                if (!isLocked) {
-                                  window.location.href = '/practice';
-                                }
-                              }}
-                            >
-                              {isCompleted ? (
-                                <>
-                                  <Eye size={16} className="mr-2" />
-                                  Ôn tập
-                                </>
-                              ) : isInProgress ? (
-                                <>
-                                  <PlayCircle size={16} className="mr-2" />
-                                  Tiếp tục
-                                </>
-                              ) : (
-                                <>
-                                  <Lock size={16} className="mr-2" />
-                                  Bị khóa
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  </motion.div>
-                );
-              })}
-            </div>
           </motion.div>
         )}
 
