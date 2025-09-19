@@ -10,7 +10,7 @@ import { Target, Calendar, Users, Sparkles, Brain, Award, TrendingUp, Zap, Star,
 
 export default function Onboarding() {
   const [step, setStep] = useState(1);
-  const [fullName, setFullName] = useState("An Nguyễn");
+  const [fullName, setFullName] = useState("Hoàng Anh");
   const [role, setRole] = useState<"student" | "parent" | "teacher">("student");
   const [grade, setGrade] = useState("9");
   const [course, setCourse] = useState("math-9");

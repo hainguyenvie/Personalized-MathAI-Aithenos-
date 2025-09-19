@@ -37,7 +37,7 @@ export default function LearningRoadmap({ userId = "sample-user-1" }: RoadmapPro
       // Mock comprehensive data for demo
       const mockProfile = {
         id: userId,
-        name: "An Nguyễn",
+        name: "Hoàng Anh",
         level: 4,
         totalXP: 2850,
         nextLevelXP: 3500,
