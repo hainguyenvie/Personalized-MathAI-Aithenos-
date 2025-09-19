@@ -180,36 +180,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Handle visual questions with shape data or image data
       if (shapeData || imageData) {
-        // For now, we'll use a simulated screenshot approach
-        // In a real implementation, you'd capture the screen area inside the shape
-        const visualContext = `${context}\nHình dạng được chọn: ${shapeData?.type || 'unknown'}\nVị trí: x=${shapeData?.x || 0}, y=${shapeData?.y || 0}`;
+        // Mock responses for different math topics based on lesson content
+        const mockMathResponses = [
+          {
+            content: `📐 **Hàm số bậc nhất** - Phần bạn đã chọn
+
+🎯 **Khái niệm chính:**
+Hàm số bậc nhất có dạng y = ax + b (a ≠ 0)
+- a: hệ số góc (độ dốc của đường thẳng)
+- b: tung độ gốc (điểm cắt trục y)
+
+📊 **Đặc điểm đồ thị:**
+- Đồ thị là đường thẳng
+- Nếu a > 0: hàm số đồng biến
+- Nếu a < 0: hàm số nghịch biến
+
+💡 **Ví dụ thực tế:**
+y = 2x + 3 có nghĩa là:
+- Mỗi khi x tăng 1, y tăng 2
+- Khi x = 0, y = 3
+
+🤔 **Câu hỏi kiểm tra hiểu:**
+Với hàm số y = -x + 5, hãy tìm giá trị y khi x = 2?`
+          },
+          {
+            content: `📈 **Cách vẽ đồ thị hàm số bậc nhất**
+
+🎯 **Bước 1: Tìm 2 điểm**
+- Cho x = 0 → tìm y
+- Cho y = 0 → tìm x
+
+📝 **Bước 2: Vẽ đường thẳng**
+- Nối 2 điểm vừa tìm được
+- Kéo dài thành đường thẳng
+
+💡 **Mẹo nhớ:**
+- Hệ số a dương: đường thẳng đi lên từ trái sang phải
+- Hệ số a âm: đường thẳng đi xuống từ trái sang phải
+
+🔍 **Lưu ý quan trọng:**
+Đồ thị hàm số bậc nhất luôn là đường thẳng không qua gốc tọa độ (trừ khi b = 0)`
+          },
+          {
+            content: `⚡ **Tìm giao điểm của hai đường thẳng**
+
+🎯 **Phương pháp:**
+Cho y₁ = a₁x + b₁ và y₂ = a₂x + b₂
+Tại giao điểm: y₁ = y₂
+
+📝 **Các bước giải:**
+1. Lập phương trình: a₁x + b₁ = a₂x + b₂
+2. Giải phương trình tìm x
+3. Thay x vào một trong hai hàm để tìm y
+
+💡 **Ví dụ cụ thể:**
+y = 2x + 1 và y = -x + 4
+→ 2x + 1 = -x + 4
+→ 3x = 3
+→ x = 1, y = 3
+→ Giao điểm: (1; 3)
+
+🤓 **Kiến thức mở rộng:**
+Hai đường thẳng song song khi a₁ = a₂ nhưng b₁ ≠ b₂`
+          }
+        ];
         
-        if (imageData) {
-          // If we have actual image data, analyze it
-          const base64Image = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
-          const response = await analyzeMathDrawing(base64Image, visualContext);
-          return res.json({ response });
-        } else {
-          // If we only have shape data, provide a contextual response
-          const response = `Tôi thấy bạn đã khoanh vùng một ${shapeData.type === 'circle' ? 'vùng tròn' : 'vùng chữ nhật'} trong video. 
-
-Dựa trên vị trí và bối cảnh bài học "${context}", đây có thể là phần bạn đang thắc mắc về:
-
-📚 **Giải thích khái niệm:**
-Phần này thường liên quan đến các bước giải toán hoặc khái niệm cần làm rõ. 
-
-🔍 **Gợi ý học tập:**
-- Hãy tạm dừng video và ghi chú lại điểm chưa hiểu
-- Thử làm lại từ đầu với các bước nhỏ hơn
-- Tham khảo ví dụ tương tự trong bài học
-
-💡 **Bạn có thể hỏi cụ thể hơn:**
-"Tại sao ở bước này lại làm như vậy?" hoặc "Có cách nào khác để giải không?"
-
-Bạn có muốn mô tả chi tiết hơn về phần nào khiến bạn bối rối không?`;
-          
-          return res.json({ response });
-        }
+        // Select random response or based on position
+        const responseIndex = Math.floor(Math.random() * mockMathResponses.length);
+        const selectedResponse = mockMathResponses[responseIndex];
+        
+        return res.json({ response: selectedResponse.content });
       }
 
       const augmented = [context, buildOntologyContext(context)].filter(Boolean).join("\n\n");

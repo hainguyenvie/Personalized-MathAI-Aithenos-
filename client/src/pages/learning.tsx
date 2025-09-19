@@ -266,9 +266,8 @@ export default function Learning() {
   }, [drawnShapes, selectedShapeId, drawingMode]);
 
   const captureVideoArea = async (shape: any): Promise<string | null> => {
-    // Create a detailed visual representation of the selected area
-    // This approach eliminates the need for screen sharing permissions
-    return createEducationalContext(shape);
+    // Simple approach: just return null so we use text-based context only
+    return null;
   };
 
   const createEducationalContext = (shape: any): string => {
