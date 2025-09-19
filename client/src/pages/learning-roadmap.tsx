@@ -335,7 +335,7 @@ export default function LearningRoadmap({ userId = "sample-user-1" }: RoadmapPro
 
             {/* Learning Topics */}
             <div className="space-y-6">
-              {learningPath?.topics.map((topic: any, index: number) => {
+              {topics.map((topic: any, index: number) => {
                 const StatusIcon = getStatusIcon(topic.status);
                 const isLocked = topic.status === "locked";
                 const isCompleted = topic.status === "completed";
