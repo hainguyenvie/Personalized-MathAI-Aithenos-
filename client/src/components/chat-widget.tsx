@@ -16,6 +16,18 @@ export default function ChatWidget() {
       timestamp: new Date(),
     }
   ]);
+
+  // Suggested questions for quick access
+  const suggestedQuestions = [
+    "Làm thế nào để xác định hệ số góc từ đồ thị?",
+    "Khi nào hai đường thẳng song song với nhau?",
+    "Cách tìm giao điểm của hai đường thẳng?",
+    "Ý nghĩa của tung độ gốc trong thực tế?",
+    "Tại sao đồ thị hàm số bậc nhất luôn là đường thẳng?",
+    "Hàm số bậc nhất có những tính chất gì?",
+    "Cách vẽ đồ thị hàm số y = ax + b?",
+    "Sự khác biệt giữa hàm số đồng biến và nghịch biến?",
+  ];
   
   // Add pending messages to chat when widget opens
   useEffect(() => {
@@ -25,9 +37,69 @@ export default function ChatWidget() {
     }
   }, [isOpen, pendingMessages, clearPendingMessages]);
   const [inputValue, setInputValue] = useState("");
+  const [showSuggestedQuestions, setShowSuggestedQuestions] = useState(true);
+
+  const handleSuggestedQuestion = async (question: string) => {
+    setShowSuggestedQuestions(false);
+    
+    const newMessage: ChatMessage = {
+      id: Date.now().toString(),
+      text: question,
+      isBot: false,
+      timestamp: new Date(),
+    };
+
+    setMessages(prev => [...prev, newMessage]);
+
+    // Add typing indicator
+    const typingMessage: ChatMessage = {
+      id: "typing",
+      text: "Đang trả lời...",
+      isBot: true,
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, typingMessage]);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: question }),
+      });
+      
+      const data = await response.json();
+      
+      // Replace typing indicator with actual response
+      setMessages(prev => prev.filter(m => m.id !== "typing"));
+      
+      const botResponse: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        text: data.response || "Xin lỗi, tôi không thể trả lời câu hỏi này lúc này.",
+        isBot: true,
+        timestamp: new Date(),
+        cta: data.cta || undefined,
+      };
+      
+      setMessages(prev => [...prev, botResponse]);
+    } catch (error) {
+      console.error("Chat error:", error);
+      setMessages(prev => prev.filter(m => m.id !== "typing"));
+      
+      const errorResponse: ChatMessage = {
+        id: (Date.now() + 2).toString(),
+        text: "Xin lỗi, hệ thống AI đang gặp sự cố. Vui lòng thử lại sau.",
+        isBot: true,
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, errorResponse]);
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
+
+    setShowSuggestedQuestions(false);
 
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -148,6 +220,24 @@ export default function ChatWidget() {
                   )}
                 </div>
               ))}
+              
+              {/* Suggested Questions */}
+              {showSuggestedQuestions && messages.length === 1 && (
+                <div className="space-y-2">
+                  {suggestedQuestions.slice(0, 6).map((question, index) => (
+                    <Button
+                      key={index}
+                      onClick={() => handleSuggestedQuestion(question)}
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-left justify-start h-auto p-3 bg-teal hover:bg-teal/90 text-white border-teal hover:border-teal"
+                      data-testid={`suggested-question-${index}`}
+                    >
+                      <span className="text-xs leading-relaxed">{question}</span>
+                    </Button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
