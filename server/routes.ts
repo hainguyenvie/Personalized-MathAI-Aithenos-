@@ -163,6 +163,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Message is required" });
       }
 
+      // Handle suggested questions with detailed responses
+      const suggestedQuestionResponses: { [key: string]: string } = {
+        "Làm thế nào để xác định hệ số góc từ đồ thị?": `📈 **Cách xác định hệ số góc từ đồ thị**
+
+🎯 **Phương pháp 1: Sử dụng hai điểm**
+1. Chọn 2 điểm bất kỳ trên đường thẳng: (x₁, y₁) và (x₂, y₂)
+2. Áp dụng công thức: a = (y₂ - y₁) / (x₂ - x₁)
+
+📊 **Phương pháp 2: Quan sát độ dốc**
+- Nếu đường thẳng đi lên từ trái sang phải → a > 0
+- Nếu đường thẳng đi xuống từ trái sang phải → a < 0
+- Đường thẳng càng dốc → |a| càng lớn
+
+💡 **Ví dụ thực tế:**
+Từ điểm (0, 2) đến (2, 6):
+a = (6 - 2) / (2 - 0) = 4/2 = 2
+
+🔍 **Mẹo nhớ:**
+Hệ số góc = Độ thay đổi của y / Độ thay đổi của x`,
+
+        "Tại sao đồ thị hàm số bậc nhất luôn là đường thẳng?": `📐 **Tại sao đồ thị hàm số bậc nhất là đường thẳng?**
+
+🎯 **Lý do toán học:**
+Hàm số bậc nhất có dạng y = ax + b
+- Đây là phương trình tuyến tính
+- Tỷ lệ thay đổi giữa x và y luôn không đổi (= a)
+
+📊 **Giải thích trực quan:**
+- Khi x tăng 1 đơn vị → y tăng a đơn vị
+- Sự thay đổi đều đặn này tạo ra đường thẳng
+- Không có sự cong vênh hay bẻ khúc
+
+💡 **So sánh với hàm khác:**
+- Hàm bậc 2: y = ax² + bx + c → Parabol (cong)
+- Hàm bậc 1: y = ax + b → Đường thẳng
+- Hàm số căn: y = √x → Đường cong
+
+🤔 **Thí nghiệm tư duy:**
+Thử vẽ các điểm (0,b), (1,a+b), (2,2a+b)...
+Bạn sẽ thấy chúng thẳng hàng!`,
+
+        "Cách tìm giao điểm của hai đường thẳng?": `⚡ **Tìm giao điểm của hai đường thẳng**
+
+🎯 **Phương pháp giải:**
+Cho: y = a₁x + b₁ và y = a₂x + b₂
+Tại giao điểm: y₁ = y₂
+
+📝 **Các bước thực hiện:**
+1. **Lập phương trình:** a₁x + b₁ = a₂x + b₂
+2. **Giải tìm x:** (a₁ - a₂)x = b₂ - b₁ → x = (b₂ - b₁)/(a₁ - a₂)
+3. **Tìm y:** Thay x vào một trong hai phương trình
+
+💡 **Ví dụ chi tiết:**
+y = 2x + 1 và y = -x + 4
+→ 2x + 1 = -x + 4
+→ 3x = 3
+→ x = 1
+→ y = 2(1) + 1 = 3
+→ Giao điểm: (1, 3)
+
+⚠️ **Trường hợp đặc biệt:**
+- Nếu a₁ = a₂ và b₁ ≠ b₂ → Song song (không có giao điểm)
+- Nếu a₁ = a₂ và b₁ = b₂ → Trùng nhau (vô số giao điểm)`,
+
+        "Ý nghĩa của tung độ gốc trong thực tế?": `🌟 **Ý nghĩa thực tế của tung độ gốc (b)**
+
+🎯 **Định nghĩa:**
+Tung độ gốc là giá trị y khi x = 0
+Trong y = ax + b, tung độ gốc là b
+
+🏠 **Ví dụ thực tế:**
+
+**1. Chi phí điện thoại:**
+y = 50x + 200 (ngàn đồng)
+- x: số phút gọi
+- 200: phí cố định hàng tháng (tung độ gốc)
+- 50: giá mỗi phút gọi
+
+**2. Nhiệt độ và độ cao:**
+y = -6x + 20 (°C)
+- x: độ cao (km)
+- 20: nhiệt độ tại mực nước biển (tung độ gốc)
+- -6: nhiệt độ giảm 6°C mỗi km
+
+**3. Tiết kiệm tiền:**
+y = 100x + 500 (ngàn đồng)
+- x: số tháng
+- 500: số tiền ban đầu (tung độ gốc)
+- 100: số tiền tiết kiệm mỗi tháng
+
+💡 **Tóm lại:**
+Tung độ gốc = Giá trị khởi điểm, điều kiện ban đầu`,
+
+        "Khi nào hai đường thẳng song song với nhau?": `📏 **Điều kiện để hai đường thẳng song song**
+
+🎯 **Điều kiện chính:**
+Hai đường thẳng y = a₁x + b₁ và y = a₂x + b₂ song song khi:
+- **a₁ = a₂** (cùng hệ số góc)
+- **b₁ ≠ b₂** (khác tung độ gốc)
+
+📊 **Giải thích trực quan:**
+- Cùng hệ số góc → cùng độ dốc
+- Khác tung độ gốc → khác vị trí xuất phát
+- Kết quả: hai đường thẳng không bao giờ cắt nhau
+
+💡 **Ví dụ cụ thể:**
+- y = 2x + 3 và y = 2x + 5 → Song song
+- y = -x + 1 và y = -x - 2 → Song song
+- y = 3x + 4 và y = 3x + 4 → Trùng nhau (không phải song song)
+
+🔍 **Ứng dụng thực tế:**
+- Đường ray xe lửa
+- Làn đường cao tốc
+- Các tầng trong tòa nhà
+
+⚠️ **Lưu ý quan trọng:**
+Nếu a₁ = a₂ VÀ b₁ = b₂ → hai đường thẳng trùng nhau (không song song)`
+      };
+
+      // Check if message matches any suggested question
+      for (const [question, response] of Object.entries(suggestedQuestionResponses)) {
+        if (message.includes(question)) {
+          return res.json({ response });
+        }
+      }
+
       // Check for learning intent keywords
       const learningKeywords = ['muốn học', 'muốn được học', 'học môn', 'học', 'tôi muốn học', 'em muốn học', 'hôm nay tôi muốn', 'hôm nay em muốn'];
       const messageLower = message.toLowerCase();
