@@ -12,15 +12,17 @@ const currentLesson = {
   title: "Bài 8: Đồ thị hàm số bậc nhất",
   description: "Học cách vẽ và phân tích đồ thị của hàm số bậc nhất y = ax + b",
   duration: "7:45",
-  teacher: "Khan Academy",
+  teacher: "Aithenos Academy",
   views: 1234,
   // Real educational YouTube videos about linear functions
   videoId: "IqvmJqO3sYA", // User-provided educational video
-  // Educational math videos from famous channels
-  alternativeVideos: [
-    { id: "x_NzXUpBdHE", title: "Slope and Linear Functions - Khan Academy" },
-    { id: "BQZ64H3dkkM", title: "Graphing Linear Equations - Professor Leonard" },
-    { id: "YQHsXMglC9A", title: "Linear Functions Word Problems - Khan Academy" }
+  // Suggested questions for practice
+  suggestedQuestions: [
+    "Làm thế nào để xác định hệ số góc từ đồ thị?",
+    "Tại sao đồ thị hàm số bậc nhất luôn là đường thẳng?",
+    "Cách tìm giao điểm của hai đường thẳng?",
+    "Ý nghĩa của tung độ gốc trong thực tế?",
+    "Khi nào hai đường thẳng song song với nhau?"
   ]
 };
 
@@ -49,7 +51,6 @@ export default function Learning() {
   const [currentMiniQuiz, setCurrentMiniQuiz] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
   const [needsReview, setNeedsReview] = useState(false);
-  const [currentVideo, setCurrentVideo] = useState(0);
   
   // Drawing Mode State
   const [drawingMode, setDrawingMode] = useState(false);
@@ -110,9 +111,6 @@ export default function Learning() {
     return `https://www.youtube.com/embed/${videoId}?rel=0&showinfo=0&modestbranding=1`;
   };
 
-  const switchVideo = (index: number) => {
-    setCurrentVideo(index);
-  };
 
   // Shape Drawing Functions
   const toggleDrawingMode = () => {
@@ -492,7 +490,7 @@ export default function Learning() {
                   <iframe
                     width="100%"
                     height="100%"
-                    src={getYouTubeEmbedUrl(currentVideo === 0 ? currentLesson.videoId : currentLesson.alternativeVideos[currentVideo - 1].id)}
+                    src={getYouTubeEmbedUrl(currentLesson.videoId)}
                     title="Video giảng dạy toán học về hàm số"
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -556,35 +554,30 @@ export default function Learning() {
                   </span>
                 </div>
 
-                {/* Alternative Videos */}
+                {/* Suggested Questions for this lesson */}
                 <div>
-                  <h3 className="font-semibold text-gray-800 mb-3">Video liên quan</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <Button
-                      onClick={() => switchVideo(0)}
-                      variant={currentVideo === 0 ? "default" : "outline"}
-                      className="text-left h-auto p-3"
-                      data-testid="video-main"
-                    >
-                      <div>
-                        <p className="font-medium text-sm">Video chính</p>
-                        <p className="text-xs text-gray-500">{currentLesson.title}</p>
-                      </div>
-                    </Button>
-                    {currentLesson.alternativeVideos.map((video, index) => (
-                      <Button
-                        key={video.id}
-                        onClick={() => switchVideo(index + 1)}
-                        variant={currentVideo === index + 1 ? "default" : "outline"}
-                        className="text-left h-auto p-3"
-                        data-testid={`video-alt-${index}`}
+                  <h3 className="font-semibold text-gray-800 mb-3">Câu hỏi gợi ý cho bài học</h3>
+                  <div className="space-y-3">
+                    {currentLesson.suggestedQuestions.map((question, index) => (
+                      <div 
+                        key={index}
+                        className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200 hover:border-blue-300 transition-colors cursor-pointer"
+                        onClick={() => openChatWithMessage(question, "")}
+                        data-testid={`suggested-question-${index}`}
                       >
-                        <div>
-                          <p className="font-medium text-sm">Video {index + 2}</p>
-                          <p className="text-xs text-gray-500">{video.title}</p>
+                        <div className="flex items-start space-x-3">
+                          <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
+                            {index + 1}
+                          </div>
+                          <p className="text-gray-700 text-sm leading-relaxed">{question}</p>
                         </div>
-                      </Button>
+                      </div>
                     ))}
+                  </div>
+                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-xs text-yellow-700">
+                      💡 <strong>Mẹo:</strong> Bấm vào câu hỏi để mở chat và nhận trợ giúp từ AI
+                    </p>
                   </div>
                 </div>
               </CardContent>
