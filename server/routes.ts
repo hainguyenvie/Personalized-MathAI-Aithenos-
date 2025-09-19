@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertAssessmentSchema, insertGameScoreSchema, insertLearningPathSchema } from "@shared/schema";
-import { getChatResponse, generateMiniQuiz, buildOntologyContext } from "./openai";
+import { getChatResponse, generateMiniQuiz, buildOntologyContext, analyzeMathDrawing } from "./openai";
 import adaptiveRoutes from "./adaptive-routes";
 import optimizedAdaptiveRoutes from "./optimized-adaptive-routes";
 import performanceRoutes from "./performance-routes";
@@ -158,7 +158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Chat routes
   app.post("/api/chat", async (req, res) => {
     try {
-      const { message, context, errorPatterns } = req.body;
+      const { message, context, errorPatterns, shapeData, imageData } = req.body;
       if (!message) {
         return res.status(400).json({ message: "Message is required" });
       }
@@ -176,6 +176,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
             href: "/onboarding"
           }
         });
+      }
+
+      // Handle visual questions with shape data or image data
+      if (shapeData || imageData) {
+        // For now, we'll use a simulated screenshot approach
+        // In a real implementation, you'd capture the screen area inside the shape
+        const visualContext = `${context}\nHình dạng được chọn: ${shapeData?.type || 'unknown'}\nVị trí: x=${shapeData?.x || 0}, y=${shapeData?.y || 0}`;
+        
+        if (imageData) {
+          // If we have actual image data, analyze it
+          const base64Image = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+          const response = await analyzeMathDrawing(base64Image, visualContext);
+          return res.json({ response });
+        } else {
+          // If we only have shape data, provide a contextual response
+          const response = `Tôi thấy bạn đã khoanh vùng một ${shapeData.type === 'circle' ? 'vùng tròn' : 'vùng chữ nhật'} trong video. 
+
+Dựa trên vị trí và bối cảnh bài học "${context}", đây có thể là phần bạn đang thắc mắc về:
+
+📚 **Giải thích khái niệm:**
+Phần này thường liên quan đến các bước giải toán hoặc khái niệm cần làm rõ. 
+
+🔍 **Gợi ý học tập:**
+- Hãy tạm dừng video và ghi chú lại điểm chưa hiểu
+- Thử làm lại từ đầu với các bước nhỏ hơn
+- Tham khảo ví dụ tương tự trong bài học
+
+💡 **Bạn có thể hỏi cụ thể hơn:**
+"Tại sao ở bước này lại làm như vậy?" hoặc "Có cách nào khác để giải không?"
+
+Bạn có muốn mô tả chi tiết hơn về phần nào khiến bạn bối rối không?`;
+          
+          return res.json({ response });
+        }
       }
 
       const augmented = [context, buildOntologyContext(context)].filter(Boolean).join("\n\n");

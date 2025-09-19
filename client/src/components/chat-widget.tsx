@@ -1,24 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MessageCircle, X, Send, Bot } from "lucide-react";
-import { useChat } from "@/contexts/chat-context";
+import { useChat, type ChatMessage } from "@/contexts/chat-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Link } from "wouter";
 
-interface ChatMessage {
-  id: string;
-  text: string;
-  isBot: boolean;
-  timestamp: Date;
-  cta?: {
-    text: string;
-    href: string;
-  };
-}
-
 export default function ChatWidget() {
-  const { isOpen, toggleChat, closeChat } = useChat();
+  const { isOpen, toggleChat, closeChat, pendingMessages, clearPendingMessages } = useChat();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
@@ -27,6 +16,14 @@ export default function ChatWidget() {
       timestamp: new Date(),
     }
   ]);
+  
+  // Add pending messages to chat when widget opens
+  useEffect(() => {
+    if (isOpen && pendingMessages.length > 0) {
+      setMessages(prev => [...prev, ...pendingMessages]);
+      clearPendingMessages();
+    }
+  }, [isOpen, pendingMessages, clearPendingMessages]);
   const [inputValue, setInputValue] = useState("");
 
   const handleSendMessage = async () => {

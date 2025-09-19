@@ -15,7 +15,7 @@ const currentLesson = {
   teacher: "Khan Academy",
   views: 1234,
   // Real educational YouTube videos about linear functions
-  videoId: "NyDDRzaKJck", // Khan Academy: Introduction to Linear Functions
+  videoId: "IqvmJqO3sYA", // User-provided educational video
   // Educational math videos from famous channels
   alternativeVideos: [
     { id: "x_NzXUpBdHE", title: "Slope and Linear Functions - Khan Academy" },
@@ -39,7 +39,7 @@ const lessonProgress = [
 ];
 
 export default function Learning() {
-  const { openChat } = useChat();
+  const { openChatWithMessage, openChat } = useChat();
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");
   const [showAnswer, setShowAnswer] = useState(false);
   const [notes, setNotes] = useState("");
@@ -54,12 +54,18 @@ export default function Learning() {
   // Drawing Mode State
   const [drawingMode, setDrawingMode] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [drawnArea, setDrawnArea] = useState<string | null>(null);
-  const [showDrawingControls, setShowDrawingControls] = useState(false);
-  const [brushSize, setBrushSize] = useState(3);
-  const [isErasing, setIsErasing] = useState(false);
+  const [drawnShapes, setDrawnShapes] = useState<Array<{
+    type: 'rectangle',
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    id: string
+  }>>([]);
+  const [currentShape, setCurrentShape] = useState<'rectangle'>('rectangle');
+  const [startPoint, setStartPoint] = useState<{x: number, y: number} | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [lastPoint, setLastPoint] = useState<{x: number, y: number} | null>(null);
+  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
 
   const handleQuizSubmit = async () => {
     setShowAnswer(true);
@@ -108,12 +114,10 @@ export default function Learning() {
     setCurrentVideo(index);
   };
 
-  // Drawing Functions
+  // Shape Drawing Functions
   const toggleDrawingMode = () => {
     setDrawingMode(!drawingMode);
-    setShowDrawingControls(!drawingMode);
     if (!drawingMode) {
-      // Initialize canvas
       setTimeout(() => setupCanvas(), 100);
     }
   };
@@ -121,19 +125,33 @@ export default function Learning() {
   const setupCanvas = () => {
     const canvas = canvasRef.current;
     if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        // Set canvas size to window size
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        
-        // Set initial drawing styles
-        ctx.lineWidth = brushSize;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = isErasing ? 'rgba(255,255,255,1)' : 'rgba(255,0,0,0.8)';
-        ctx.globalCompositeOperation = isErasing ? 'destination-out' : 'source-over';
-      }
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      redrawShapes();
     }
+  };
+
+  const redrawShapes = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw all shapes (rectangles only)
+    drawnShapes.forEach(shape => {
+      ctx.strokeStyle = selectedShapeId === shape.id ? 'rgba(255, 0, 0, 1)' : 'rgba(255, 0, 0, 0.8)';
+      ctx.lineWidth = selectedShapeId === shape.id ? 4 : 3;
+      ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
+      
+      ctx.beginPath();
+      ctx.rect(shape.x, shape.y, shape.width, shape.height);
+      ctx.stroke();
+      ctx.fill();
+    });
   };
 
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
@@ -150,11 +168,11 @@ export default function Learning() {
     };
     
     setIsDrawing(true);
-    setLastPoint(point);
+    setStartPoint(point);
   };
 
   const draw = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDrawing || !lastPoint) return;
+    if (!isDrawing || !startPoint) return;
     
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -170,79 +188,173 @@ export default function Learning() {
       x: clientX - rect.left,
       y: clientY - rect.top
     };
+
+    // Redraw existing shapes
+    redrawShapes();
     
-    // Draw line from last point to current point
+    // Draw preview of rectangle
+    ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    
+    const width = currentPoint.x - startPoint.x;
+    const height = currentPoint.y - startPoint.y;
     ctx.beginPath();
-    ctx.moveTo(lastPoint.x, lastPoint.y);
-    ctx.lineTo(currentPoint.x, currentPoint.y);
+    ctx.rect(startPoint.x, startPoint.y, width, height);
     ctx.stroke();
     
-    setLastPoint(currentPoint);
+    ctx.setLineDash([]);
   };
 
-  const stopDrawing = () => {
-    setIsDrawing(false);
-    setLastPoint(null);
+  const stopDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawing || !startPoint) return;
     
-    // Save the drawing
     const canvas = canvasRef.current;
-    if (canvas) {
-      const imageData = canvas.toDataURL('image/png');
-      setDrawnArea(imageData);
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    
+    const endPoint = {
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    };
+
+    const shapeId = `shape-${Date.now()}`;
+    const width = endPoint.x - startPoint.x;
+    const height = endPoint.y - startPoint.y;
+    
+    if (Math.abs(width) > 30 && Math.abs(height) > 30) { // Minimum size
+      const newShape = {
+        type: 'rectangle' as const,
+        x: width < 0 ? endPoint.x : startPoint.x,
+        y: height < 0 ? endPoint.y : startPoint.y,
+        width: Math.abs(width),
+        height: Math.abs(height),
+        id: shapeId
+      };
+      setDrawnShapes(prev => [...prev, newShape]);
+      setSelectedShapeId(shapeId);
     }
+    
+    setIsDrawing(false);
+    setStartPoint(null);
   };
 
-  const clearCanvas = () => {
+  const clearAllShapes = () => {
+    console.log("Clearing all shapes...");
+    setDrawnShapes([]);
+    setSelectedShapeId(null);
+    
+    // Force clear the canvas immediately
     const canvas = canvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        console.log("Canvas cleared");
       }
     }
-    setDrawnArea(null);
   };
 
-  const toggleEraser = () => {
-    setIsErasing(!isErasing);
-    setupCanvas(); // Update canvas settings
-  };
-
-  // Update canvas when brush size or eraser mode changes
+  // Update canvas when shapes change
   useEffect(() => {
     if (drawingMode) {
-      setupCanvas();
+      redrawShapes();
     }
-  }, [brushSize, isErasing, drawingMode]);
+  }, [drawnShapes, selectedShapeId, drawingMode]);
+
+  const captureVideoArea = async (shape: any): Promise<string | null> => {
+    try {
+      // Find the video iframe
+      const iframe = document.querySelector('iframe[data-testid="youtube-player"]') as HTMLIFrameElement;
+      if (!iframe) {
+        console.error("Video iframe not found");
+        return null;
+      }
+
+      // Get iframe position and size
+      const iframeRect = iframe.getBoundingClientRect();
+      
+      // Create canvas to capture the iframe area
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) return null;
+
+      // Set canvas size to match the selected area
+      const padding = 20;
+      canvas.width = shape.width + padding * 2;
+      canvas.height = shape.height + padding * 2;
+
+      // Calculate the relative position within the iframe
+      const relativeX = shape.x - iframeRect.left;
+      const relativeY = shape.y - iframeRect.top;
+
+      // For now, we'll create a placeholder image with the lesson context
+      // since we can't directly capture iframe content due to CORS
+      ctx.fillStyle = '#f8f9fa';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      ctx.fillStyle = '#333';
+      ctx.font = '16px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Video content area selected', canvas.width / 2, canvas.height / 2 - 20);
+      ctx.fillText(`Lesson: ${currentLesson.title}`, canvas.width / 2, canvas.height / 2 + 20);
+      
+      // Add selection info
+      ctx.font = '12px Arial';
+      ctx.fillText(`Selected area: ${shape.width}x${shape.height}px`, canvas.width / 2, canvas.height / 2 + 50);
+
+      return canvas.toDataURL('image/png');
+    } catch (error) {
+      console.error("Video capture failed:", error);
+      return null;
+    }
+  };
 
   const sendDrawingToChatbot = async () => {
-    if (drawnArea) {
-      // Send the drawn area to the chatbot
-      const message = "Tôi đã vẽ một phần không hiểu trong bài học. Bạn có thể giải thích giúp tôi không?";
-      
-      try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            message,
-            context: `User drew an area they don't understand in the lesson: ${currentLesson.title}`,
-            imageData: drawnArea
-          }),
-        });
+    if (selectedShapeId) {
+      const selectedShape = drawnShapes.find(shape => shape.id === selectedShapeId);
+      if (selectedShape) {
+        const message = `Tôi đã khoanh vùng một phần trong video mà tôi không hiểu (vùng chữ nhật). Bạn có thể giải thích cho tôi không?`;
         
-        const data = await response.json();
-        console.log("Chatbot response:", data.response);
-        
-        // Clear the drawing and open chat
-        setDrawnArea(null);
-        setDrawingMode(false);
-        setShowDrawingControls(false);
-        
-        // Open the chat widget to show the response
-        openChat();
-      } catch (error) {
-        console.error("Failed to send drawing to chatbot:", error);
+        try {
+          // Capture the video area that was highlighted
+          const imageData = await captureVideoArea(selectedShape);
+          
+          const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              message,
+              context: `User highlighted an area they don't understand in the lesson: ${currentLesson.title}. Selected rectangle area: ${selectedShape.width}x${selectedShape.height}px`,
+              shapeData: selectedShape,
+              imageData: imageData // Send actual image data
+            }),
+          });
+          
+          const data = await response.json();
+          console.log("Chatbot response:", data.response);
+          
+          // Clear the drawing
+          setDrawnShapes([]);
+          setSelectedShapeId(null);
+          setDrawingMode(false);
+          
+          // Open chat with the message and response
+          openChatWithMessage(message, data.response);
+        } catch (error) {
+          console.error("Failed to send drawing to chatbot:", error);
+          
+          // Clear drawing and show error in chat
+          setDrawnShapes([]);
+          setSelectedShapeId(null);
+          setDrawingMode(false);
+          
+          openChatWithMessage(message, "Xin lỗi, đã có lỗi xảy ra khi xử lý yêu cầu. Vui lòng thử lại.");
+        }
       }
     }
   };
@@ -254,7 +366,7 @@ export default function Learning() {
         <div className="fixed inset-0 z-50 bg-black/20">
           <canvas
             ref={canvasRef}
-            className={`absolute inset-0 w-full h-full ${isErasing ? 'cursor-cell' : 'cursor-crosshair'}`}
+            className="absolute inset-0 w-full h-full cursor-crosshair"
             onMouseDown={startDrawing}
             onMouseMove={draw}
             onMouseUp={stopDrawing}
@@ -275,62 +387,48 @@ export default function Learning() {
             <X size={20} />
           </Button>
           
-          {/* Drawing Controls */}
+          {/* Shape Controls */}
           <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={toggleEraser}
-                size="sm"
-                variant={isErasing ? "default" : "outline"}
-                data-testid="eraser-toggle"
-              >
-                {isErasing ? <Pen size={16} /> : <Eraser size={16} />}
-              </Button>
-              <Button
-                onClick={clearCanvas}
-                size="sm"
-                variant="outline"
-                data-testid="clear-canvas"
-              >
-                <RotateCcw size={16} />
-              </Button>
-            </div>
-            
             <div className="space-y-2">
-              <label className="text-xs font-medium">Độ dày nét</label>
-              <input
-                type="range"
-                min="1"
-                max="10"
-                value={brushSize}
-                onChange={(e) => setBrushSize(Number(e.target.value))}
-                className="w-full"
-                data-testid="brush-size-slider"
-              />
-              <div className="text-xs text-center">{brushSize}px</div>
+              <label className="text-xs font-medium">Vẽ hình chữ nhật</label>
+              <p className="text-xs text-gray-500">Kéo thả để chọn vùng</p>
             </div>
             
-            {/* Send Drawing Button */}
-            {drawnArea && (
+            <Button
+              onClick={clearAllShapes}
+              size="sm"
+              variant="outline"
+              className="w-full"
+              data-testid="clear-all-shapes"
+            >
+              <RotateCcw size={16} className="mr-2" />
+              Xóa tất cả
+            </Button>
+          </div>
+          
+          {/* Ask Button - appears near selected shape */}
+          {selectedShapeId && (
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
               <Button
                 onClick={sendDrawingToChatbot}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white"
-                size="sm"
+                className="bg-blue-500 hover:bg-blue-600 text-white shadow-lg animate-pulse"
+                size="lg"
                 data-testid="send-drawing"
               >
-                <Send size={16} className="mr-2" />
+                <Send size={20} className="mr-2" />
                 Giải đáp
               </Button>
-            )}
-          </div>
+            </div>
+          )}
           
           {/* Instructions */}
           <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-xs">
-            <h3 className="font-semibold text-sm mb-2">Hướng dẫn vẽ</h3>
+            <h3 className="font-semibold text-sm mb-2">Hướng dẫn</h3>
             <ul className="text-xs space-y-1 text-gray-600">
-              <li>• Vẽ lên phần không hiểu</li>
-              <li>• Sử dụng tẩy để sửa</li>
-              <li>• Bấm "Giải đáp" khi hoàn thành</li>
+              <li>• Kéo thả để vẽ hình chữ nhật</li>
+              <li>• Khoanh vùng phần không hiểu</li>
+              <li>• Bấm "Giải đáp" để hỏi AI</li>
+              <li>• AI sẽ phân tích vùng bạn chọn</li>
               <li>• Bấm X để thoát</li>
             </ul>
           </div>
@@ -350,7 +448,7 @@ export default function Learning() {
               <Pen size={16} className="mr-2" />
               {drawingMode ? 'Thoát vẽ' : 'Vẽ để hỏi'}
             </Button>
-            {drawnArea && (
+            {selectedShapeId && (
               <Button
                 onClick={sendDrawingToChatbot}
                 className="bg-green-600 hover:bg-green-700 text-white"

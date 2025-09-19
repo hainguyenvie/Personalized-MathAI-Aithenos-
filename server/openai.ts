@@ -212,3 +212,52 @@ export function buildOntologyContext(rawContext?: string): string | undefined {
   } catch {}
   return undefined;
 }
+
+// Image analysis function for visual questions
+export async function analyzeMathDrawing(base64Image: string, context: string): Promise<string> {
+  try {
+    if (!openaiEnabled || !openai) {
+      return "Xin lỗi, tính năng phân tích hình ảnh hiện không khả dụng. Vui lòng mô tả vấn đề bằng lời để tôi có thể giúp bạn.";
+    }
+
+    const prompt = `Bạn là một trợ lý AI giáo dục toán học tiếng Việt. Học sinh đã khoanh vùng một phần trong video học toán mà họ không hiểu. 
+
+Bối cảnh bài học: ${context}
+
+Hãy phân tích hình ảnh và:
+1. Xác định phần toán học mà học sinh đã khoanh vùng
+2. Giải thích khái niệm hoặc bước giải liên quan một cách dễ hiểu
+3. Đưa ra ví dụ tương tự nếu cần thiết
+4. Hướng dẫn cách học sinh có thể tiếp tục học
+
+Trả lời bằng tiếng Việt, ngôn ngữ thân thiện và dễ hiểu cho học sinh trung học.`;
+
+    // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-5",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: prompt
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/png;base64,${base64Image}`
+              }
+            }
+          ],
+        },
+      ],
+      max_completion_tokens: 1024,
+    });
+
+    return response.choices[0].message.content || "Không thể phân tích hình ảnh này. Vui lòng thử lại.";
+  } catch (error) {
+    console.error("Error analyzing math drawing:", error);
+    return "Đã xảy ra lỗi khi phân tích hình ảnh. Vui lòng mô tả vấn đề bằng lời để tôi có thể giúp bạn tốt hơn.";
+  }
+}
