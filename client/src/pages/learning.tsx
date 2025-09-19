@@ -267,51 +267,119 @@ export default function Learning() {
 
   const captureVideoArea = async (shape: any): Promise<string | null> => {
     try {
-      // Find the video iframe
-      const iframe = document.querySelector('iframe[data-testid="youtube-player"]') as HTMLIFrameElement;
-      if (!iframe) {
-        console.error("Video iframe not found");
-        return null;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        console.error("Screen capture not supported in this browser");
+        return createPlaceholderImage(shape);
       }
 
-      // Get iframe position and size
-      const iframeRect = iframe.getBoundingClientRect();
-      
-      // Create canvas to capture the iframe area
+      // Request screen capture permission
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { mediaSource: 'screen' },
+        audio: false
+      });
+
+      // Create video element to capture the stream
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+
+      // Wait for video to be ready
+      await new Promise((resolve) => {
+        video.onloadedmetadata = resolve;
+      });
+
+      // Wait a bit more for the video to stabilize
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Create canvas to capture the frame
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       
-      if (!ctx) return null;
+      if (!ctx) {
+        stream.getTracks().forEach(track => track.stop());
+        return createPlaceholderImage(shape);
+      }
 
       // Set canvas size to match the selected area
-      const padding = 20;
-      canvas.width = shape.width + padding * 2;
-      canvas.height = shape.height + padding * 2;
+      canvas.width = shape.width;
+      canvas.height = shape.height;
 
-      // Calculate the relative position within the iframe
-      const relativeX = shape.x - iframeRect.left;
-      const relativeY = shape.y - iframeRect.top;
+      // Get the iframe position to calculate the capture area
+      const iframe = document.querySelector('iframe[data-testid="youtube-player"]') as HTMLIFrameElement;
+      if (!iframe) {
+        stream.getTracks().forEach(track => track.stop());
+        return createPlaceholderImage(shape);
+      }
 
-      // For now, we'll create a placeholder image with the lesson context
-      // since we can't directly capture iframe content due to CORS
-      ctx.fillStyle = '#f8f9fa';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      ctx.fillStyle = '#333';
-      ctx.font = '16px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('Video content area selected', canvas.width / 2, canvas.height / 2 - 20);
-      ctx.fillText(`Lesson: ${currentLesson.title}`, canvas.width / 2, canvas.height / 2 + 20);
-      
-      // Add selection info
-      ctx.font = '12px Arial';
-      ctx.fillText(`Selected area: ${shape.width}x${shape.height}px`, canvas.width / 2, canvas.height / 2 + 50);
+      const iframeRect = iframe.getBoundingClientRect();
+      const videoDisplayWidth = video.videoWidth;
+      const videoDisplayHeight = video.videoHeight;
+      const screenWidth = window.screen.width;
+      const screenHeight = window.screen.height;
 
+      // Calculate scale factors
+      const scaleX = videoDisplayWidth / screenWidth;
+      const scaleY = videoDisplayHeight / screenHeight;
+
+      // Calculate source coordinates in the captured video
+      const sourceX = shape.x * scaleX;
+      const sourceY = shape.y * scaleY;
+      const sourceWidth = shape.width * scaleX;
+      const sourceHeight = shape.height * scaleY;
+
+      // Draw the captured area from video to canvas
+      ctx.drawImage(
+        video,
+        sourceX,
+        sourceY,
+        sourceWidth,
+        sourceHeight,
+        0,
+        0,
+        shape.width,
+        shape.height
+      );
+
+      // Stop the screen capture stream
+      stream.getTracks().forEach(track => track.stop());
+
+      // Return the captured image as base64
       return canvas.toDataURL('image/png');
     } catch (error) {
-      console.error("Video capture failed:", error);
-      return null;
+      console.error("Screen capture failed:", error);
+      return createPlaceholderImage(shape);
     }
+  };
+
+  const createPlaceholderImage = (shape: any): string => {
+    // Fallback: create informative placeholder when screen capture fails
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx) return '';
+    
+    canvas.width = shape.width || 400;
+    canvas.height = shape.height || 300;
+    
+    // Create a visual representation of the selected area
+    ctx.fillStyle = '#f0f8ff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.strokeStyle = '#ff4444';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([10, 5]);
+    ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
+    
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Vùng được chọn trong video', canvas.width / 2, canvas.height / 2 - 30);
+    
+    ctx.font = '14px Arial';
+    ctx.fillText(`Bài: ${currentLesson.title}`, canvas.width / 2, canvas.height / 2);
+    ctx.fillText(`Kích thước: ${shape.width}x${shape.height}px`, canvas.width / 2, canvas.height / 2 + 30);
+    
+    return canvas.toDataURL('image/png');
   };
 
   const sendDrawingToChatbot = async () => {
@@ -427,8 +495,9 @@ export default function Learning() {
             <ul className="text-xs space-y-1 text-gray-600">
               <li>• Kéo thả để vẽ hình chữ nhật</li>
               <li>• Khoanh vùng phần không hiểu</li>
-              <li>• Bấm "Giải đáp" để hỏi AI</li>
-              <li>• AI sẽ phân tích vùng bạn chọn</li>
+              <li>• Bấm "Giải đáp" để chụp màn hình</li>
+              <li>• Cho phép chia sẻ màn hình khi được hỏi</li>
+              <li>• AI sẽ phân tích hình ảnh thật</li>
               <li>• Bấm X để thoát</li>
             </ul>
           </div>
