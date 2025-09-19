@@ -397,7 +397,7 @@ export default function LearningRoadmap({ userId = "sample-user-1" }: RoadmapPro
                           <div className="mb-4">
                             <div className="text-sm font-medium text-gray-700 mb-2">Kỹ năng sẽ học:</div>
                             <div className="flex flex-wrap gap-2">
-                              {topic.skills.map((skill: string, skillIndex: number) => (
+                              {(topic.skills || []).map((skill: string, skillIndex: number) => (
                                 <span 
                                   key={skillIndex}
                                   className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full"
@@ -411,8 +411,8 @@ export default function LearningRoadmap({ userId = "sample-user-1" }: RoadmapPro
                           {/* Action Button */}
                           <div className="flex items-center justify-between">
                             <div className="text-sm text-gray-500">
-                              {topic.prerequisites.length > 0 && (
-                                <span>Cần hoàn thành: {topic.prerequisites.join(", ")}</span>
+                              {(topic.prerequisites || []).length > 0 && (
+                                <span>Cần hoàn thành: {(topic.prerequisites || []).join(", ")}</span>
                               )}
                             </div>
                             
