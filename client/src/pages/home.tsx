@@ -1,4 +1,4 @@
-import { Flame, Star, Clock, Eye, Target, ClipboardCheck, PlayCircle, Trophy, LineChart, Award, Zap, Lightbulb, Sparkles } from "lucide-react";
+import { Flame, Star, Clock, Eye, Target, ClipboardCheck, PlayCircle, Trophy, LineChart, Award, Zap, Lightbulb, Sparkles, MapPin, Flag, CheckCircle, Circle, ArrowRight } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -150,6 +150,162 @@ function HomeContent() {
           <div className="lg:col-span-2">
             <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
               <CardContent className="p-8">
+                {/* Beautiful Visual Roadmap */}
+                <div className="mb-12 relative">
+                  <div className="text-center mb-8">
+                    <h3 className="text-2xl font-bold text-blue-900 mb-2">Hành trình học tập của bạn</h3>
+                    <p className="text-gray-600 text-sm">Mỗi bước tiến đều quan trọng trên con đường chinh phục tri thức</p>
+                  </div>
+                  
+                  {/* Curved Path with Milestones */}
+                  <div className="relative h-48 overflow-hidden">
+                    {/* Background curved path */}
+                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 800 200">
+                      <defs>
+                        <linearGradient id="pathGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.3"/>
+                          <stop offset="50%" stopColor="#0ea5e9" stopOpacity="0.3"/>
+                          <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.3"/>
+                        </linearGradient>
+                      </defs>
+                      <path
+                        d="M 50 150 Q 200 120 350 100 Q 500 80 650 60 Q 750 50 780 40"
+                        stroke="url(#pathGradient)"
+                        strokeWidth="6"
+                        fill="none"
+                        strokeDasharray="10,5"
+                        className="animate-pulse"
+                      />
+                    </svg>
+                    
+                    {/* Milestone markers */}
+                    <div className="absolute inset-0 flex items-center justify-between px-4">
+                      {/* Milestone 1: Assessment */}
+                      <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                        className="relative flex flex-col items-center"
+                        style={{ marginTop: '60px' }}
+                      >
+                        <div className="bg-gradient-to-br from-teal-500 to-teal-600 w-16 h-16 rounded-full flex items-center justify-center shadow-lg border-4 border-white">
+                          <ClipboardCheck className="text-white" size={24} />
+                        </div>
+                        <div className="mt-2 text-center">
+                          <div className="text-xs font-semibold text-teal-700">Đánh giá</div>
+                          <div className="text-xs text-gray-600">Bắt đầu</div>
+                        </div>
+                      </motion.div>
+
+                      {/* Milestone 2: Learning */}
+                      <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ delay: 0.4, type: "spring", stiffness: 200 }}
+                        className="relative flex flex-col items-center"
+                        style={{ marginTop: '20px' }}
+                      >
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg border-4 border-white ${lastAssessment ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-gray-300'}`}>
+                          <PlayCircle className="text-white" size={24} />
+                        </div>
+                        <div className="mt-2 text-center">
+                          <div className="text-xs font-semibold text-blue-700">Học tập</div>
+                          <div className="text-xs text-gray-600">{lastAssessment ? 'Đang tiến hành' : 'Sắp tới'}</div>
+                        </div>
+                      </motion.div>
+
+                      {/* Milestone 3: Practice */}
+                      <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ delay: 0.6, type: "spring", stiffness: 200 }}
+                        className="relative flex flex-col items-center"
+                        style={{ marginTop: '-10px' }}
+                      >
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg border-4 border-white ${lastAssessment && lastAssessment.score > 30 ? 'bg-gradient-to-br from-orange-500 to-orange-600' : 'bg-gray-300'}`}>
+                          <Target className="text-white" size={24} />
+                        </div>
+                        <div className="mt-2 text-center">
+                          <div className="text-xs font-semibold text-orange-700">Thực hành</div>
+                          <div className="text-xs text-gray-600">{lastAssessment && lastAssessment.score > 30 ? 'Đang luyện tập' : 'Sắp tới'}</div>
+                        </div>
+                      </motion.div>
+
+                      {/* Milestone 4: Mastery */}
+                      <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ delay: 0.8, type: "spring", stiffness: 200 }}
+                        className="relative flex flex-col items-center"
+                        style={{ marginTop: '-40px' }}
+                      >
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg border-4 border-white ${lastAssessment && lastAssessment.score > 70 ? 'bg-gradient-to-br from-purple-500 to-purple-600' : 'bg-gray-300'}`}>
+                          <Trophy className="text-white" size={24} />
+                        </div>
+                        <div className="mt-2 text-center">
+                          <div className="text-xs font-semibold text-purple-700">Thành thạo</div>
+                          <div className="text-xs text-gray-600">{lastAssessment && lastAssessment.score > 70 ? 'Gần đạt được' : 'Mục tiêu'}</div>
+                        </div>
+                      </motion.div>
+
+                      {/* Milestone 5: Excellence */}
+                      <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ delay: 1.0, type: "spring", stiffness: 200 }}
+                        className="relative flex flex-col items-center"
+                        style={{ marginTop: '-70px' }}
+                      >
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg border-4 border-white ${lastAssessment && lastAssessment.score > 90 ? 'bg-gradient-to-br from-yellow-500 to-yellow-600' : 'bg-gray-300'}`}>
+                          <Star className="text-white" size={24} />
+                        </div>
+                        <div className="mt-2 text-center">
+                          <div className="text-xs font-semibold text-yellow-700">Xuất sắc</div>
+                          <div className="text-xs text-gray-600">{lastAssessment && lastAssessment.score > 90 ? 'Hoàn thành!' : 'Đỉnh cao'}</div>
+                        </div>
+                      </motion.div>
+                    </div>
+
+                    {/* Floating particles for decoration */}
+                    <div className="absolute inset-0 overflow-hidden">
+                      {[...Array(6)].map((_, i) => (
+                        <motion.div
+                          key={i}
+                          className="absolute w-2 h-2 bg-blue-400 rounded-full opacity-40"
+                          style={{
+                            left: `${Math.random() * 100}%`,
+                            top: `${Math.random() * 100}%`,
+                          }}
+                          animate={{
+                            y: [-10, 10, -10],
+                            x: [-5, 5, -5],
+                            opacity: [0.2, 0.6, 0.2],
+                          }}
+                          transition={{
+                            duration: 3 + Math.random() * 2,
+                            repeat: Infinity,
+                            delay: Math.random() * 2,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Progress indicator */}
+                  <div className="mt-6 text-center">
+                    <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-teal-50 to-blue-50 px-4 py-2 rounded-full border border-teal-200">
+                      <Sparkles className="text-teal-600" size={16} />
+                      <span className="text-sm font-medium text-gray-700">
+                        {lastAssessment 
+                          ? `Bạn đã hoàn thành ${Math.min(Math.floor(lastAssessment.score / 20), 4)}/5 cột mốc`
+                          : 'Hãy bắt đầu với bài đánh giá đầu tiên!'
+                        }
+                      </span>
+                      <ArrowRight className="text-teal-600" size={16} />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between mb-8">
                   <h2 className="text-3xl font-bold text-blue-900">Lộ trình học tập của bạn</h2>
                   <span className="bg-teal-100 text-teal-700 px-4 py-2 rounded-full text-sm font-semibold">
@@ -395,20 +551,22 @@ function HomeContent() {
               <CardContent className="p-6">
                 <h3 className="text-xl font-bold text-blue-900 mb-6">Thành tích mới nhất</h3>
                 <div className="space-y-4">
-                  {mockAchievements.map((achievement) => (
-                    <div key={achievement.id} className="flex items-center space-x-4 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md ${
-                        achievement.color === 'gold' ? 'bg-yellow-500' : 'bg-green-500'
-                      }`}>
-                        {achievement.icon === 'fire' && <Flame className="text-white" size={18} />}
-                        {achievement.icon === 'star' && <Star className="text-white" size={18} />}
+                  {mockAchievements.map((achievement) => {
+                    const IconComponent = achievement.icon;
+                    return (
+                      <div key={achievement.id} className="flex items-center space-x-4 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md ${
+                          achievement.rarity === 'epic' ? 'bg-yellow-500' : 'bg-green-500'
+                        }`}>
+                          <IconComponent className="text-white" size={18} />
+                        </div>
+                        <div>
+                          <div className="font-bold text-blue-900">{achievement.name}</div>
+                          <div className="text-sm text-gray-600">{achievement.description}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-bold text-blue-900">{achievement.name}</div>
-                        <div className="text-sm text-gray-600">{achievement.description}</div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
