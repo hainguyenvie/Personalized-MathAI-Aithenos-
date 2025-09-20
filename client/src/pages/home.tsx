@@ -1,4 +1,4 @@
-import { Flame, Star, Clock, Eye, Target, ClipboardCheck, PlayCircle, Trophy, LineChart, Award, Zap, Lightbulb, Sparkles, MapPin, Flag, CheckCircle, Circle, ArrowRight } from "lucide-react";
+import { Flame, Star, Clock, Eye, Target, ClipboardCheck, PlayCircle, Trophy, LineChart, Award, Zap, Lightbulb, Sparkles, MapPin, Flag, CheckCircle, Circle, ArrowRight, Calculator, PieChart, Triangle, Ruler, BookOpen, Brain, Rocket } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -143,6 +143,296 @@ function HomeContent() {
         </div>
       </div>
 
+      {/* Epic Math Roadmap Section */}
+      <div className="relative min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 overflow-hidden">
+        {/* Animated background stars */}
+        <div className="absolute inset-0">
+          {[...Array(50)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 bg-white rounded-full"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+              }}
+              animate={{
+                opacity: [0, 1, 0],
+                scale: [0, 1, 0],
+              }}
+              transition={{
+                duration: 2 + Math.random() * 3,
+                repeat: Infinity,
+                delay: Math.random() * 5,
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-6 py-24">
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-5xl md:text-6xl font-bold text-white mb-6 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              Hành trình chinh phục Toán học lớp 6
+            </h2>
+            <p className="text-xl text-purple-200 max-w-3xl mx-auto">
+              Khám phá thế giới số học qua từng chủ đề thú vị và đầy thách thức
+            </p>
+          </motion.div>
+
+          {/* Creative Roadmap Path */}
+          <div className="relative">
+            {/* SVG Curved Path */}
+            <svg className="absolute inset-0 w-full h-full min-h-[800px]" viewBox="0 0 1200 800">
+              <defs>
+                <linearGradient id="roadmapGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.8"/>
+                  <stop offset="25%" stopColor="#3b82f6" stopOpacity="0.8"/>
+                  <stop offset="50%" stopColor="#8b5cf6" stopOpacity="0.8"/>
+                  <stop offset="75%" stopColor="#ec4899" stopOpacity="0.8"/>
+                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.8"/>
+                </linearGradient>
+                <filter id="glow">
+                  <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                  <feMerge> 
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+              </defs>
+              <motion.path
+                d="M 100 700 Q 200 600 300 650 Q 400 700 500 600 Q 600 500 700 550 Q 800 600 900 450 Q 1000 300 1100 200"
+                stroke="url(#roadmapGradient)"
+                strokeWidth="8"
+                fill="none"
+                filter="url(#glow)"
+                strokeLinecap="round"
+                initial={{ pathLength: 0 }}
+                whileInView={{ pathLength: 1 }}
+                transition={{ duration: 3, ease: "easeInOut" }}
+              />
+            </svg>
+
+            {/* Math Topics as Milestones */}
+            <div className="relative z-20 min-h-[800px]">
+              {/* Topic 1: Số tự nhiên */}
+              <motion.div
+                initial={{ scale: 0, rotate: 180 }}
+                whileInView={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.5, type: "spring", stiffness: 150 }}
+                className="absolute"
+                style={{ left: '8%', top: '80%' }}
+              >
+                <div className="relative group cursor-pointer">
+                  <div className="w-24 h-24 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-2xl flex items-center justify-center shadow-2xl border-4 border-white/30 backdrop-blur-sm">
+                    <Calculator className="text-white" size={32} />
+                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 1 }}
+                    className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center"
+                  >
+                    <div className="bg-white/90 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
+                      <div className="font-bold text-cyan-700">Số tự nhiên</div>
+                      <div className="text-xs text-gray-600">Bắt đầu hành trình</div>
+                    </div>
+                  </motion.div>
+                </div>
+              </motion.div>
+
+              {/* Topic 2: Phân số */}
+              <motion.div
+                initial={{ scale: 0, rotate: 180 }}
+                whileInView={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.7, type: "spring", stiffness: 150 }}
+                className="absolute"
+                style={{ left: '25%', top: '65%' }}
+              >
+                <div className="relative group cursor-pointer">
+                  <div className={`w-24 h-24 rounded-2xl flex items-center justify-center shadow-2xl border-4 border-white/30 backdrop-blur-sm ${lastAssessment ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-gray-400'}`}>
+                    <PieChart className="text-white" size={32} />
+                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 1.2 }}
+                    className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center"
+                  >
+                    <div className="bg-white/90 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
+                      <div className="font-bold text-blue-700">Phân số</div>
+                      <div className="text-xs text-gray-600">{lastAssessment ? 'Đang học' : 'Sắp tới'}</div>
+                    </div>
+                  </motion.div>
+                </div>
+              </motion.div>
+
+              {/* Topic 3: Hình học phẳng */}
+              <motion.div
+                initial={{ scale: 0, rotate: 180 }}
+                whileInView={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.9, type: "spring", stiffness: 150 }}
+                className="absolute"
+                style={{ left: '42%', top: '55%' }}
+              >
+                <div className="relative group cursor-pointer">
+                  <div className={`w-24 h-24 rounded-2xl flex items-center justify-center shadow-2xl border-4 border-white/30 backdrop-blur-sm ${lastAssessment && lastAssessment.score > 30 ? 'bg-gradient-to-br from-purple-400 to-purple-600' : 'bg-gray-400'}`}>
+                    <Triangle className="text-white" size={32} />
+                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 1.4 }}
+                    className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center"
+                  >
+                    <div className="bg-white/90 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
+                      <div className="font-bold text-purple-700">Hình học phẳng</div>
+                      <div className="text-xs text-gray-600">{lastAssessment && lastAssessment.score > 30 ? 'Đã mở khóa' : 'Chưa mở'}</div>
+                    </div>
+                  </motion.div>
+                </div>
+              </motion.div>
+
+              {/* Topic 4: Đo lường */}
+              <motion.div
+                initial={{ scale: 0, rotate: 180 }}
+                whileInView={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 1.1, type: "spring", stiffness: 150 }}
+                className="absolute"
+                style={{ left: '58%', top: '45%' }}
+              >
+                <div className="relative group cursor-pointer">
+                  <div className={`w-24 h-24 rounded-2xl flex items-center justify-center shadow-2xl border-4 border-white/30 backdrop-blur-sm ${lastAssessment && lastAssessment.score > 50 ? 'bg-gradient-to-br from-pink-400 to-pink-600' : 'bg-gray-400'}`}>
+                    <Ruler className="text-white" size={32} />
+                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 1.6 }}
+                    className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center"
+                  >
+                    <div className="bg-white/90 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
+                      <div className="font-bold text-pink-700">Đo lường</div>
+                      <div className="text-xs text-gray-600">{lastAssessment && lastAssessment.score > 50 ? 'Khả năng cao' : 'Cần cố gắng'}</div>
+                    </div>
+                  </motion.div>
+                </div>
+              </motion.div>
+
+              {/* Topic 5: Thống kê */}
+              <motion.div
+                initial={{ scale: 0, rotate: 180 }}
+                whileInView={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 1.3, type: "spring", stiffness: 150 }}
+                className="absolute"
+                style={{ left: '75%', top: '35%' }}
+              >
+                <div className="relative group cursor-pointer">
+                  <div className={`w-24 h-24 rounded-2xl flex items-center justify-center shadow-2xl border-4 border-white/30 backdrop-blur-sm ${lastAssessment && lastAssessment.score > 70 ? 'bg-gradient-to-br from-orange-400 to-orange-600' : 'bg-gray-400'}`}>
+                    <LineChart className="text-white" size={32} />
+                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 1.8 }}
+                    className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center"
+                  >
+                    <div className="bg-white/90 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
+                      <div className="font-bold text-orange-700">Thống kê cơ bản</div>
+                      <div className="text-xs text-gray-600">{lastAssessment && lastAssessment.score > 70 ? 'Gần hoàn thành' : 'Thử thách cuối'}</div>
+                    </div>
+                  </motion.div>
+                </div>
+              </motion.div>
+
+              {/* Final Achievement: Rocket */}
+              <motion.div
+                initial={{ scale: 0, rotate: 180 }}
+                whileInView={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 1.5, type: "spring", stiffness: 150 }}
+                className="absolute"
+                style={{ left: '90%', top: '20%' }}
+              >
+                <div className="relative group cursor-pointer">
+                  <div className={`w-28 h-28 rounded-full flex items-center justify-center shadow-2xl border-4 border-white/30 backdrop-blur-sm ${lastAssessment && lastAssessment.score > 90 ? 'bg-gradient-to-br from-yellow-400 via-orange-400 to-red-500' : 'bg-gray-400'}`}>
+                    <Rocket className="text-white" size={36} />
+                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 2 }}
+                    className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center"
+                  >
+                    <div className="bg-white/90 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
+                      <div className="font-bold text-yellow-700">Bậc thầy Toán học</div>
+                      <div className="text-xs text-gray-600">{lastAssessment && lastAssessment.score > 90 ? 'Xuất sắc!' : 'Mục tiêu tối cao'}</div>
+                    </div>
+                  </motion.div>
+                </div>
+              </motion.div>
+
+              {/* Floating Knowledge Icons */}
+              {[BookOpen, Brain, Star, Lightbulb].map((Icon, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute text-white/20"
+                  style={{
+                    left: `${20 + Math.random() * 60}%`,
+                    top: `${20 + Math.random() * 60}%`,
+                  }}
+                  animate={{
+                    y: [-20, 20, -20],
+                    rotate: [0, 360],
+                    scale: [0.8, 1.2, 0.8],
+                  }}
+                  transition={{
+                    duration: 4 + Math.random() * 2,
+                    repeat: Infinity,
+                    delay: Math.random() * 3,
+                  }}
+                >
+                  <Icon size={24 + Math.random() * 16} />
+                </motion.div>
+              ))}
+            </div>
+          </div>
+
+          {/* Progress Summary */}
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ delay: 2.5 }}
+            className="text-center mt-16"
+          >
+            <div className="inline-flex items-center space-x-4 bg-white/10 backdrop-blur-md rounded-2xl px-8 py-4 border border-white/20">
+              <Sparkles className="text-cyan-400" size={24} />
+              <span className="text-xl font-semibold text-white">
+                {lastAssessment 
+                  ? `Bạn đã chinh phục ${Math.min(Math.floor(lastAssessment.score / 18), 5)}/5 chủ đề toán học`
+                  : 'Sẵn sàng bắt đầu cuộc phiêu lưu toán học?'
+                }
+              </span>
+              <ArrowRight className="text-cyan-400" size={24} />
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Scroll indicator */}
+        <motion.div
+          animate={{ y: [0, 10, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white/60"
+        >
+          <div className="text-sm text-center">
+            <div className="text-purple-200">Cuộn xuống để khám phá thêm</div>
+            <ArrowRight className="mx-auto mt-2 rotate-90" size={20} />
+          </div>
+        </motion.div>
+      </div>
+
       {/* Learning Progress Section */}
       <div className="max-w-6xl mx-auto px-6 py-12">
         <div className="grid lg:grid-cols-3 gap-8">
@@ -150,161 +440,6 @@ function HomeContent() {
           <div className="lg:col-span-2">
             <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
               <CardContent className="p-8">
-                {/* Beautiful Visual Roadmap */}
-                <div className="mb-12 relative">
-                  <div className="text-center mb-8">
-                    <h3 className="text-2xl font-bold text-blue-900 mb-2">Hành trình học tập của bạn</h3>
-                    <p className="text-gray-600 text-sm">Mỗi bước tiến đều quan trọng trên con đường chinh phục tri thức</p>
-                  </div>
-                  
-                  {/* Curved Path with Milestones */}
-                  <div className="relative h-48 overflow-hidden">
-                    {/* Background curved path */}
-                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 800 200">
-                      <defs>
-                        <linearGradient id="pathGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.3"/>
-                          <stop offset="50%" stopColor="#0ea5e9" stopOpacity="0.3"/>
-                          <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.3"/>
-                        </linearGradient>
-                      </defs>
-                      <path
-                        d="M 50 150 Q 200 120 350 100 Q 500 80 650 60 Q 750 50 780 40"
-                        stroke="url(#pathGradient)"
-                        strokeWidth="6"
-                        fill="none"
-                        strokeDasharray="10,5"
-                        className="animate-pulse"
-                      />
-                    </svg>
-                    
-                    {/* Milestone markers */}
-                    <div className="absolute inset-0 flex items-center justify-between px-4">
-                      {/* Milestone 1: Assessment */}
-                      <motion.div
-                        initial={{ scale: 0, rotate: -180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                        className="relative flex flex-col items-center"
-                        style={{ marginTop: '60px' }}
-                      >
-                        <div className="bg-gradient-to-br from-teal-500 to-teal-600 w-16 h-16 rounded-full flex items-center justify-center shadow-lg border-4 border-white">
-                          <ClipboardCheck className="text-white" size={24} />
-                        </div>
-                        <div className="mt-2 text-center">
-                          <div className="text-xs font-semibold text-teal-700">Đánh giá</div>
-                          <div className="text-xs text-gray-600">Bắt đầu</div>
-                        </div>
-                      </motion.div>
-
-                      {/* Milestone 2: Learning */}
-                      <motion.div
-                        initial={{ scale: 0, rotate: -180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ delay: 0.4, type: "spring", stiffness: 200 }}
-                        className="relative flex flex-col items-center"
-                        style={{ marginTop: '20px' }}
-                      >
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg border-4 border-white ${lastAssessment ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-gray-300'}`}>
-                          <PlayCircle className="text-white" size={24} />
-                        </div>
-                        <div className="mt-2 text-center">
-                          <div className="text-xs font-semibold text-blue-700">Học tập</div>
-                          <div className="text-xs text-gray-600">{lastAssessment ? 'Đang tiến hành' : 'Sắp tới'}</div>
-                        </div>
-                      </motion.div>
-
-                      {/* Milestone 3: Practice */}
-                      <motion.div
-                        initial={{ scale: 0, rotate: -180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ delay: 0.6, type: "spring", stiffness: 200 }}
-                        className="relative flex flex-col items-center"
-                        style={{ marginTop: '-10px' }}
-                      >
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg border-4 border-white ${lastAssessment && lastAssessment.score > 30 ? 'bg-gradient-to-br from-orange-500 to-orange-600' : 'bg-gray-300'}`}>
-                          <Target className="text-white" size={24} />
-                        </div>
-                        <div className="mt-2 text-center">
-                          <div className="text-xs font-semibold text-orange-700">Thực hành</div>
-                          <div className="text-xs text-gray-600">{lastAssessment && lastAssessment.score > 30 ? 'Đang luyện tập' : 'Sắp tới'}</div>
-                        </div>
-                      </motion.div>
-
-                      {/* Milestone 4: Mastery */}
-                      <motion.div
-                        initial={{ scale: 0, rotate: -180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ delay: 0.8, type: "spring", stiffness: 200 }}
-                        className="relative flex flex-col items-center"
-                        style={{ marginTop: '-40px' }}
-                      >
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg border-4 border-white ${lastAssessment && lastAssessment.score > 70 ? 'bg-gradient-to-br from-purple-500 to-purple-600' : 'bg-gray-300'}`}>
-                          <Trophy className="text-white" size={24} />
-                        </div>
-                        <div className="mt-2 text-center">
-                          <div className="text-xs font-semibold text-purple-700">Thành thạo</div>
-                          <div className="text-xs text-gray-600">{lastAssessment && lastAssessment.score > 70 ? 'Gần đạt được' : 'Mục tiêu'}</div>
-                        </div>
-                      </motion.div>
-
-                      {/* Milestone 5: Excellence */}
-                      <motion.div
-                        initial={{ scale: 0, rotate: -180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ delay: 1.0, type: "spring", stiffness: 200 }}
-                        className="relative flex flex-col items-center"
-                        style={{ marginTop: '-70px' }}
-                      >
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg border-4 border-white ${lastAssessment && lastAssessment.score > 90 ? 'bg-gradient-to-br from-yellow-500 to-yellow-600' : 'bg-gray-300'}`}>
-                          <Star className="text-white" size={24} />
-                        </div>
-                        <div className="mt-2 text-center">
-                          <div className="text-xs font-semibold text-yellow-700">Xuất sắc</div>
-                          <div className="text-xs text-gray-600">{lastAssessment && lastAssessment.score > 90 ? 'Hoàn thành!' : 'Đỉnh cao'}</div>
-                        </div>
-                      </motion.div>
-                    </div>
-
-                    {/* Floating particles for decoration */}
-                    <div className="absolute inset-0 overflow-hidden">
-                      {[...Array(6)].map((_, i) => (
-                        <motion.div
-                          key={i}
-                          className="absolute w-2 h-2 bg-blue-400 rounded-full opacity-40"
-                          style={{
-                            left: `${Math.random() * 100}%`,
-                            top: `${Math.random() * 100}%`,
-                          }}
-                          animate={{
-                            y: [-10, 10, -10],
-                            x: [-5, 5, -5],
-                            opacity: [0.2, 0.6, 0.2],
-                          }}
-                          transition={{
-                            duration: 3 + Math.random() * 2,
-                            repeat: Infinity,
-                            delay: Math.random() * 2,
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Progress indicator */}
-                  <div className="mt-6 text-center">
-                    <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-teal-50 to-blue-50 px-4 py-2 rounded-full border border-teal-200">
-                      <Sparkles className="text-teal-600" size={16} />
-                      <span className="text-sm font-medium text-gray-700">
-                        {lastAssessment 
-                          ? `Bạn đã hoàn thành ${Math.min(Math.floor(lastAssessment.score / 20), 4)}/5 cột mốc`
-                          : 'Hãy bắt đầu với bài đánh giá đầu tiên!'
-                        }
-                      </span>
-                      <ArrowRight className="text-teal-600" size={16} />
-                    </div>
-                  </div>
-                </div>
 
                 <div className="flex items-center justify-between mb-8">
                   <h2 className="text-3xl font-bold text-blue-900">Lộ trình học tập của bạn</h2>
