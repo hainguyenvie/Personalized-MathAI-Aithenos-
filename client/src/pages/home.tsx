@@ -10,6 +10,7 @@ import { useLocation } from "wouter";
 import { AnimatedProgressBar, StaggeredList, PulseAttention, TypewriterText } from "@/components/enhanced-animations";
 import { motion } from "framer-motion";
 
+
 function HomeContent() {
   const [, navigate] = useLocation();
   const [hasOnboarding, setHasOnboarding] = useState(false);
@@ -17,6 +18,8 @@ function HomeContent() {
   const [lastAssessment, setLastAssessment] = useState<any | null>(null);
   const [knowledgeTiles, setKnowledgeTiles] = useState<any[]>([]);
   const [onboardingConfig, setOnboardingConfig] = useState<any>(null);
+  const [expandedMilestone, setExpandedMilestone] = useState<string | null>(null);
+
 
   // Use generic greeting for display
   const userDisplayName = 'bạn học';
@@ -186,7 +189,7 @@ function HomeContent() {
           {/* Creative Roadmap Path */}
           <div className="relative">
             {/* SVG Curved Path */}
-            <svg className="absolute inset-0 w-full h-full min-h-[800px]" viewBox="0 0 1200 800">
+            <svg className="absolute inset-0 w-full h-full min-h-[600px]" viewBox="0 0 1000 600">
               <defs>
                 <linearGradient id="roadmapGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.8"/>
@@ -196,7 +199,7 @@ function HomeContent() {
                   <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.8"/>
                 </linearGradient>
                 <filter id="glow">
-                  <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
                   <feMerge> 
                     <feMergeNode in="coloredBlur"/>
                     <feMergeNode in="SourceGraphic"/>
@@ -204,200 +207,289 @@ function HomeContent() {
                 </filter>
               </defs>
               <motion.path
-                d="M 100 700 Q 200 600 300 650 Q 400 700 500 600 Q 600 500 700 550 Q 800 600 900 450 Q 1000 300 1100 200"
+                d="M 80 500 Q 200 400 350 450 Q 500 500 650 350 Q 800 200 920 150"
                 stroke="url(#roadmapGradient)"
-                strokeWidth="8"
+                strokeWidth="6"
                 fill="none"
                 filter="url(#glow)"
                 strokeLinecap="round"
                 initial={{ pathLength: 0 }}
                 whileInView={{ pathLength: 1 }}
-                transition={{ duration: 3, ease: "easeInOut" }}
+                transition={{ duration: 2.5, ease: "easeInOut" }}
               />
             </svg>
 
-            {/* Math Topics as Milestones */}
-            <div className="relative z-20 min-h-[800px]">
-              {/* Topic 1: Số tự nhiên */}
+            {/* Interactive Math Topics - Clean Milestone Implementation */}
+            <div className="relative z-20 min-h-[500px]">
+              {/* Milestone 1: Số tự nhiên */}
               <motion.div
                 initial={{ scale: 0, rotate: 180 }}
                 whileInView={{ scale: 1, rotate: 0 }}
-                transition={{ delay: 0.5, type: "spring", stiffness: 150 }}
+                transition={{ delay: 0.5, type: "spring", stiffness: 150, damping: 12 }}
                 className="absolute"
-                style={{ left: '8%', top: '80%' }}
+                style={{ left: '8%', top: '78%' }}
               >
-                <div className="relative group cursor-pointer">
-                  <div className="w-24 h-24 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-2xl flex items-center justify-center shadow-2xl border-4 border-white/30 backdrop-blur-sm">
-                    <Calculator className="text-white" size={32} />
-                  </div>
+                <div className="relative group">
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 1 }}
-                    className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center"
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setExpandedMilestone(expandedMilestone === 'natural' ? null : 'natural')}
+                    className="w-16 h-16 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-xl flex items-center justify-center shadow-2xl border-4 border-white/40 backdrop-blur-sm cursor-pointer transition-all duration-300 hover:shadow-3xl hover:border-white/60"
                   >
-                    <div className="bg-white/90 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
-                      <div className="font-bold text-cyan-700">Số tự nhiên</div>
-                      <div className="text-xs text-gray-600">Bắt đầu hành trình</div>
+                    <Calculator className="text-white" size={24} />
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.8 }}
+                    className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 text-center min-w-max"
+                  >
+                    <div className="bg-white/95 backdrop-blur-md rounded-lg px-3 py-2 shadow-lg border border-white/20">
+                      <div className="font-bold text-sm text-cyan-700">Số tự nhiên</div>
+                      <div className="text-xs text-gray-600 mt-1">Bắt đầu hành trình</div>
                     </div>
                   </motion.div>
+
+                  {/* Expandable Content */}
+                  <motion.div
+                    animate={{ 
+                      opacity: expandedMilestone === 'natural' ? 1 : 0, 
+                      scale: expandedMilestone === 'natural' ? 1 : 0.8,
+                      y: expandedMilestone === 'natural' ? 0 : -10,
+                      pointerEvents: expandedMilestone === 'natural' ? 'auto' : 'none'
+                    }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                    className="absolute -top-40 left-1/2 transform -translate-x-1/2 z-30"
+                    style={{ minWidth: '220px' }}
+                  >
+                    <div className="bg-white/95 backdrop-blur-md rounded-xl p-4 shadow-2xl border border-white/30">
+                      <div className="font-bold text-sm text-cyan-700 mb-3 text-center border-b border-gray-200 pb-2">
+                        Số tự nhiên - Nội dung học
+                      </div>
+                      <div className="space-y-2">
+                        {["So sánh số tự nhiên", "Phép cộng, trừ", "Phép nhân, chia", "Ước và bội số", "Số nguyên tố"].map((topic, index) => (
+                          <motion.div
+                            key={index}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: expandedMilestone === 'natural' ? 1 : 0, x: expandedMilestone === 'natural' ? 0 : -10 }}
+                            transition={{ delay: expandedMilestone === 'natural' ? index * 0.1 : 0 }}
+                            className="flex items-center text-xs text-gray-700"
+                          >
+                            <div className="w-2 h-2 rounded-full bg-gradient-to-r from-cyan-400 to-cyan-600 mr-2 flex-shrink-0" />
+                            <span>{topic}</span>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Pulsing Ring */}
+                  <motion.div
+                    animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="absolute inset-0 w-16 h-16 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-xl opacity-30"
+                  />
                 </div>
               </motion.div>
 
-              {/* Topic 2: Phân số */}
+              {/* Milestone 2: Phân số */}
               <motion.div
                 initial={{ scale: 0, rotate: 180 }}
                 whileInView={{ scale: 1, rotate: 0 }}
-                transition={{ delay: 0.7, type: "spring", stiffness: 150 }}
+                transition={{ delay: 0.7, type: "spring", stiffness: 150, damping: 12 }}
                 className="absolute"
-                style={{ left: '25%', top: '65%' }}
+                style={{ left: '35%', top: '70%' }}
               >
-                <div className="relative group cursor-pointer">
-                  <div className={`w-24 h-24 rounded-2xl flex items-center justify-center shadow-2xl border-4 border-white/30 backdrop-blur-sm ${lastAssessment ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-gray-400'}`}>
-                    <PieChart className="text-white" size={32} />
-                  </div>
+                <div className="relative group">
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => lastAssessment && setExpandedMilestone(expandedMilestone === 'fraction' ? null : 'fraction')}
+                    className={`w-16 h-16 rounded-xl flex items-center justify-center shadow-2xl border-4 border-white/40 backdrop-blur-sm cursor-pointer transition-all duration-300 hover:shadow-3xl ${lastAssessment ? 'bg-gradient-to-br from-blue-400 to-blue-600 hover:border-white/60' : 'bg-gray-400'}`}
+                  >
+                    <PieChart className="text-white" size={24} />
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.0 }}
+                    className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 text-center min-w-max"
+                  >
+                    <div className="bg-white/95 backdrop-blur-md rounded-lg px-3 py-2 shadow-lg border border-white/20">
+                      <div className="font-bold text-sm text-blue-700">Phân số</div>
+                      <div className="text-xs text-gray-600 mt-1">{lastAssessment ? 'Đang học' : 'Sắp tới'}</div>
+                    </div>
+                  </motion.div>
+
+                  {expandedMilestone === 'fraction' && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="absolute -top-40 left-1/2 transform -translate-x-1/2 z-30"
+                      style={{ minWidth: '220px' }}
+                    >
+                      <div className="bg-white/95 backdrop-blur-md rounded-xl p-4 shadow-2xl border border-white/30">
+                        <div className="font-bold text-sm text-blue-700 mb-3 text-center border-b border-gray-200 pb-2">
+                          Phân số - Nội dung học
+                        </div>
+                        <div className="space-y-2">
+                          {["Khái niệm phân số", "So sánh phân số", "Cộng trừ phân số", "Nhân chia phân số", "Hỗn số và phân số"].map((topic, index) => (
+                            <div key={index} className="flex items-center text-xs text-gray-700">
+                              <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 mr-2 flex-shrink-0" />
+                              <span>{topic}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {lastAssessment && (
+                    <motion.div
+                      animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
+                      transition={{ duration: 2.5, repeat: Infinity }}
+                      className="absolute inset-0 w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl opacity-30"
+                    />
+                  )}
+                </div>
+              </motion.div>
+
+              {/* Milestone 3: Hình học */}
+              <motion.div
+                initial={{ scale: 0, rotate: 180 }}
+                whileInView={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.9, type: "spring", stiffness: 150, damping: 12 }}
+                className="absolute"
+                style={{ left: '65%', top: '55%' }}
+              >
+                <div className="relative group">
+                  <motion.div
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => lastAssessment && lastAssessment.score > 30 && setExpandedMilestone(expandedMilestone === 'geometry' ? null : 'geometry')}
+                    className={`w-16 h-16 rounded-xl flex items-center justify-center shadow-2xl border-4 border-white/40 backdrop-blur-sm cursor-pointer transition-all duration-300 hover:shadow-3xl ${lastAssessment && lastAssessment.score > 30 ? 'bg-gradient-to-br from-purple-400 to-purple-600 hover:border-white/60' : 'bg-gray-400'}`}
+                  >
+                    <Triangle className="text-white" size={24} />
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
                     transition={{ delay: 1.2 }}
-                    className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center"
+                    className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 text-center min-w-max"
                   >
-                    <div className="bg-white/90 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
-                      <div className="font-bold text-blue-700">Phân số</div>
-                      <div className="text-xs text-gray-600">{lastAssessment ? 'Đang học' : 'Sắp tới'}</div>
+                    <div className="bg-white/95 backdrop-blur-md rounded-lg px-3 py-2 shadow-lg border border-white/20">
+                      <div className="font-bold text-sm text-purple-700">Hình học phẳng</div>
+                      <div className="text-xs text-gray-600 mt-1">{lastAssessment && lastAssessment.score > 30 ? 'Đã mở khóa' : 'Chưa mở'}</div>
                     </div>
                   </motion.div>
+
+                  {lastAssessment && lastAssessment.score > 30 && (
+                    <motion.div
+                      animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
+                      transition={{ duration: 3, repeat: Infinity }}
+                      className="absolute inset-0 w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl opacity-30"
+                    />
+                  )}
                 </div>
               </motion.div>
 
-              {/* Topic 3: Hình học phẳng */}
+              {/* Milestone 4: Thống kê */}
               <motion.div
                 initial={{ scale: 0, rotate: 180 }}
                 whileInView={{ scale: 1, rotate: 0 }}
-                transition={{ delay: 0.9, type: "spring", stiffness: 150 }}
+                transition={{ delay: 1.1, type: "spring", stiffness: 150, damping: 12 }}
                 className="absolute"
-                style={{ left: '42%', top: '55%' }}
+                style={{ left: '80%', top: '30%' }}
               >
-                <div className="relative group cursor-pointer">
-                  <div className={`w-24 h-24 rounded-2xl flex items-center justify-center shadow-2xl border-4 border-white/30 backdrop-blur-sm ${lastAssessment && lastAssessment.score > 30 ? 'bg-gradient-to-br from-purple-400 to-purple-600' : 'bg-gray-400'}`}>
-                    <Triangle className="text-white" size={32} />
-                  </div>
+                <div className="relative group">
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`w-16 h-16 rounded-xl flex items-center justify-center shadow-2xl border-4 border-white/40 backdrop-blur-sm cursor-pointer transition-all duration-300 hover:shadow-3xl ${lastAssessment && lastAssessment.score > 70 ? 'bg-gradient-to-br from-orange-400 to-orange-600 hover:border-white/60' : 'bg-gray-400'}`}
+                  >
+                    <LineChart className="text-white" size={24} />
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
                     transition={{ delay: 1.4 }}
-                    className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center"
+                    className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 text-center min-w-max"
                   >
-                    <div className="bg-white/90 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
-                      <div className="font-bold text-purple-700">Hình học phẳng</div>
-                      <div className="text-xs text-gray-600">{lastAssessment && lastAssessment.score > 30 ? 'Đã mở khóa' : 'Chưa mở'}</div>
+                    <div className="bg-white/95 backdrop-blur-md rounded-lg px-3 py-2 shadow-lg border border-white/20">
+                      <div className="font-bold text-sm text-orange-700">Thống kê</div>
+                      <div className="text-xs text-gray-600 mt-1">{lastAssessment && lastAssessment.score > 70 ? 'Gần hoàn thành' : 'Thử thách cuối'}</div>
                     </div>
                   </motion.div>
                 </div>
               </motion.div>
 
-              {/* Topic 4: Đo lường */}
+              {/* Final Milestone: Bậc thầy */}
               <motion.div
                 initial={{ scale: 0, rotate: 180 }}
                 whileInView={{ scale: 1, rotate: 0 }}
-                transition={{ delay: 1.1, type: "spring", stiffness: 150 }}
+                transition={{ delay: 1.3, type: "spring", stiffness: 150, damping: 12 }}
                 className="absolute"
-                style={{ left: '58%', top: '45%' }}
+                style={{ left: '92%', top: '22%' }}
               >
-                <div className="relative group cursor-pointer">
-                  <div className={`w-24 h-24 rounded-2xl flex items-center justify-center shadow-2xl border-4 border-white/30 backdrop-blur-sm ${lastAssessment && lastAssessment.score > 50 ? 'bg-gradient-to-br from-pink-400 to-pink-600' : 'bg-gray-400'}`}>
-                    <Ruler className="text-white" size={32} />
-                  </div>
+                <div className="relative group">
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`w-20 h-20 rounded-full flex items-center justify-center shadow-2xl border-4 border-white/40 backdrop-blur-sm cursor-pointer transition-all duration-300 hover:shadow-3xl ${lastAssessment && lastAssessment.score > 90 ? 'bg-gradient-to-br from-yellow-400 via-orange-400 to-red-500 hover:border-white/60' : 'bg-gray-400'}`}
+                  >
+                    <Rocket className="text-white" size={28} />
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
                     transition={{ delay: 1.6 }}
-                    className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center"
+                    className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 text-center min-w-max"
                   >
-                    <div className="bg-white/90 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
-                      <div className="font-bold text-pink-700">Đo lường</div>
-                      <div className="text-xs text-gray-600">{lastAssessment && lastAssessment.score > 50 ? 'Khả năng cao' : 'Cần cố gắng'}</div>
+                    <div className="bg-white/95 backdrop-blur-md rounded-lg px-3 py-2 shadow-lg border border-white/20">
+                      <div className="font-bold text-sm text-yellow-700">Bậc thầy Toán</div>
+                      <div className="text-xs text-gray-600 mt-1">{lastAssessment && lastAssessment.score > 90 ? 'Xuất sắc!' : 'Mục tiêu tối cao'}</div>
                     </div>
                   </motion.div>
+
+                  {lastAssessment && lastAssessment.score > 90 && (
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1], opacity: [0.8, 0.3, 0.8] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                      className="absolute inset-0 w-20 h-20 bg-gradient-to-br from-yellow-400 via-orange-400 to-red-500 rounded-full opacity-40"
+                    />
+                  )}
                 </div>
               </motion.div>
-
-              {/* Topic 5: Thống kê */}
-              <motion.div
-                initial={{ scale: 0, rotate: 180 }}
-                whileInView={{ scale: 1, rotate: 0 }}
-                transition={{ delay: 1.3, type: "spring", stiffness: 150 }}
-                className="absolute"
-                style={{ left: '75%', top: '35%' }}
-              >
-                <div className="relative group cursor-pointer">
-                  <div className={`w-24 h-24 rounded-2xl flex items-center justify-center shadow-2xl border-4 border-white/30 backdrop-blur-sm ${lastAssessment && lastAssessment.score > 70 ? 'bg-gradient-to-br from-orange-400 to-orange-600' : 'bg-gray-400'}`}>
-                    <LineChart className="text-white" size={32} />
-                  </div>
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 1.8 }}
-                    className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center"
-                  >
-                    <div className="bg-white/90 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
-                      <div className="font-bold text-orange-700">Thống kê cơ bản</div>
-                      <div className="text-xs text-gray-600">{lastAssessment && lastAssessment.score > 70 ? 'Gần hoàn thành' : 'Thử thách cuối'}</div>
-                    </div>
-                  </motion.div>
-                </div>
-              </motion.div>
-
-              {/* Final Achievement: Rocket */}
-              <motion.div
-                initial={{ scale: 0, rotate: 180 }}
-                whileInView={{ scale: 1, rotate: 0 }}
-                transition={{ delay: 1.5, type: "spring", stiffness: 150 }}
-                className="absolute"
-                style={{ left: '90%', top: '20%' }}
-              >
-                <div className="relative group cursor-pointer">
-                  <div className={`w-28 h-28 rounded-full flex items-center justify-center shadow-2xl border-4 border-white/30 backdrop-blur-sm ${lastAssessment && lastAssessment.score > 90 ? 'bg-gradient-to-br from-yellow-400 via-orange-400 to-red-500' : 'bg-gray-400'}`}>
-                    <Rocket className="text-white" size={36} />
-                  </div>
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 2 }}
-                    className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center"
-                  >
-                    <div className="bg-white/90 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
-                      <div className="font-bold text-yellow-700">Bậc thầy Toán học</div>
-                      <div className="text-xs text-gray-600">{lastAssessment && lastAssessment.score > 90 ? 'Xuất sắc!' : 'Mục tiêu tối cao'}</div>
-                    </div>
-                  </motion.div>
-                </div>
-              </motion.div>
-
-              {/* Floating Knowledge Icons */}
-              {[BookOpen, Brain, Star, Lightbulb].map((Icon, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute text-white/20"
-                  style={{
-                    left: `${20 + Math.random() * 60}%`,
-                    top: `${20 + Math.random() * 60}%`,
-                  }}
-                  animate={{
-                    y: [-20, 20, -20],
-                    rotate: [0, 360],
-                    scale: [0.8, 1.2, 0.8],
-                  }}
-                  transition={{
-                    duration: 4 + Math.random() * 2,
-                    repeat: Infinity,
-                    delay: Math.random() * 3,
-                  }}
-                >
-                  <Icon size={24 + Math.random() * 16} />
-                </motion.div>
-              ))}
             </div>
+
+            {/* Floating Knowledge Icons */}
+            {[BookOpen, Brain, Star, Lightbulb].map((Icon, i) => (
+              <motion.div
+                key={i}
+                className="absolute text-white/15 pointer-events-none"
+                style={{
+                  left: `${15 + i * 20}%`,
+                  top: `${25 + i * 10}%`,
+                }}
+                animate={{
+                  y: [-15, 15, -15],
+                  rotate: [0, 180, 360],
+                  opacity: [0.1, 0.3, 0.1],
+                }}
+                transition={{
+                  duration: 6 + i,
+                  repeat: Infinity,
+                  delay: i * 1.5,
+                }}
+              >
+                <Icon size={20 + i * 4} />
+              </motion.div>
+            ))}
           </div>
 
           {/* Progress Summary */}
