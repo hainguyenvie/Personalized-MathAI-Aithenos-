@@ -11,6 +11,7 @@ export interface Question {
   choices: string[];
   correct_answer: number;
   explanation: string;
+  theory?: string;
   topic?: string;
   problem_type?: string;
 }

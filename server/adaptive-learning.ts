@@ -41,8 +41,26 @@ export interface Session {
   tutor_sessions: TutorSession[];
   review_sessions: ReviewSession[];
   mastery_map: { [lesson: number]: { [difficulty: string]: boolean } };
+  // New fields for round-based supplementary system
+  supplementary_rounds: SupplementaryRound[];
+  current_supplementary_round: number;
+  wrong_answers_for_supplementary: Answer[];
   created_at: Date;
   updated_at: Date;
+}
+
+export interface SupplementaryRound {
+  id: string;
+  round_number: number;
+  difficulty: 'N' | 'H' | 'V';
+  original_wrong_answer: Answer;
+  original_question: Question;
+  supplementary_questions: Question[];
+  round_answers: Answer[];
+  round_completed: boolean;
+  round_passed: boolean; // 80%+ threshold
+  round_review_session?: ReviewSession;
+  created_at: Date;
 }
 
 export interface Answer {
@@ -97,9 +115,18 @@ export interface ReviewSession {
 
 export type SessionState =
   | 'INIT'
-  | 'BUNDLE_N' | 'EVAL_N' | 'SUPP_N' | 'TUTOR_N' | 'REVIEW_N' | 'REVIEW_FAIL_N' | 'REVIEW_SUPP_N' | 'REVIEW_SUPP_FAIL_N'
-  | 'BUNDLE_H' | 'EVAL_H' | 'SUPP_H' | 'TUTOR_H' | 'REVIEW_H' | 'REVIEW_FAIL_H' | 'REVIEW_SUPP_H' | 'REVIEW_SUPP_FAIL_H'
-  | 'BUNDLE_V' | 'EVAL_V' | 'SUPP_V' | 'TUTOR_V' | 'REVIEW_V' | 'REVIEW_FAIL_V' | 'REVIEW_SUPP_V' | 'REVIEW_SUPP_FAIL_V'
+  | 'BUNDLE_N' | 'EVAL_N' | 'REVIEW_N' | 'REVIEW_FAIL_N' 
+  | 'SUPP_ROUND_N_1' | 'SUPP_ROUND_N_2' | 'SUPP_ROUND_N_3' | 'SUPP_ROUND_N_4' | 'SUPP_ROUND_N_5'
+  | 'REVIEW_SUPP_ROUND_N_1' | 'REVIEW_SUPP_ROUND_N_2' | 'REVIEW_SUPP_ROUND_N_3' | 'REVIEW_SUPP_ROUND_N_4' | 'REVIEW_SUPP_ROUND_N_5'
+  | 'TUTOR_N' | 'REVIEW_SUPP_N' | 'REVIEW_SUPP_FAIL_N'
+  | 'BUNDLE_H' | 'EVAL_H' | 'REVIEW_H' | 'REVIEW_FAIL_H'
+  | 'SUPP_ROUND_H_1' | 'SUPP_ROUND_H_2' | 'SUPP_ROUND_H_3' | 'SUPP_ROUND_H_4' | 'SUPP_ROUND_H_5'
+  | 'REVIEW_SUPP_ROUND_H_1' | 'REVIEW_SUPP_ROUND_H_2' | 'REVIEW_SUPP_ROUND_H_3' | 'REVIEW_SUPP_ROUND_H_4' | 'REVIEW_SUPP_ROUND_H_5'
+  | 'TUTOR_H' | 'REVIEW_SUPP_H' | 'REVIEW_SUPP_FAIL_H'
+  | 'BUNDLE_V' | 'EVAL_V' | 'REVIEW_V' | 'REVIEW_FAIL_V'
+  | 'SUPP_ROUND_V_1' | 'SUPP_ROUND_V_2' | 'SUPP_ROUND_V_3' | 'SUPP_ROUND_V_4' | 'SUPP_ROUND_V_5'
+  | 'REVIEW_SUPP_ROUND_V_1' | 'REVIEW_SUPP_ROUND_V_2' | 'REVIEW_SUPP_ROUND_V_3' | 'REVIEW_SUPP_ROUND_V_4' | 'REVIEW_SUPP_ROUND_V_5'
+  | 'TUTOR_V' | 'REVIEW_SUPP_V' | 'REVIEW_SUPP_FAIL_V'
   | 'END';
 
 // New state flow logic:
@@ -391,6 +418,10 @@ export class AdaptiveLearningManager {
       tutor_sessions: [],
       review_sessions: [],
       mastery_map: {},
+      // New fields for round-based supplementary system
+      supplementary_rounds: [],
+      current_supplementary_round: 0,
+      wrong_answers_for_supplementary: [],
       created_at: new Date(),
       updated_at: new Date()
     };
@@ -563,7 +594,293 @@ export class AdaptiveLearningManager {
     return { score, weakLessons, nextState, passed, wrongAnswers };
   }
 
-  // Generate supplementary bundle - 2 questions per wrong answer
+  // Generate supplementary rounds - NEW METHOD for round-based system
+  async generateSupplementaryRounds(sessionId: string, wrongAnswers: Answer[], difficulty: 'N' | 'H' | 'V'): Promise<SupplementaryRound[]> {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+
+    console.log(`Generating supplementary rounds for ${wrongAnswers.length} wrong answers`);
+    
+    const supplementaryRounds: SupplementaryRound[] = [];
+    
+    for (let i = 0; i < wrongAnswers.length; i++) {
+      const wrongAnswer = wrongAnswers[i];
+      const originalQuestion = session.current_bundle.find(q => q.id === wrongAnswer.question_id);
+      
+      if (originalQuestion) {
+        console.log(`Creating round ${i + 1} for wrong answer ${wrongAnswer.question_id}`);
+        
+        try {
+          // Generate 5 isomorphic questions for this wrong answer
+          const generatedQuestions = await this.aiGenerator.generateIsomorphicQuestions(originalQuestion, 5);
+          console.log(`Generated ${generatedQuestions.length} questions for round ${i + 1}`);
+          
+          let supplementaryQuestions: Question[] = [];
+          if (generatedQuestions.length >= 5) {
+            supplementaryQuestions = generatedQuestions.slice(0, 5);
+          } else {
+            // If not enough questions generated, try fallback
+            console.log(`Not enough questions generated, using fallback for round ${i + 1}`);
+            supplementaryQuestions = generatedQuestions;
+            
+            // Try to generate more from topic
+            const additionalQuestions = await this.aiGenerator.generateSupplementaryQuestions(
+              [originalQuestion.lesson_id],
+              difficulty,
+              [],
+              session.asked_question_ids
+            );
+            supplementaryQuestions.push(...additionalQuestions.slice(0, 5 - supplementaryQuestions.length));
+            
+            // Final fallback: use backup generator
+            if (supplementaryQuestions.length < 5) {
+              const { questionBackupGenerator } = await import('./question-backup');
+              const backupQuestions = await questionBackupGenerator.generateTopicQuestions(
+                originalQuestion.lesson_id, 
+                difficulty, 
+                5 - supplementaryQuestions.length
+              );
+              
+              const convertedQuestions: Question[] = backupQuestions.map(q => ({
+                id: q.id,
+                lesson_id: q.lesson_id,
+                difficulty: q.difficulty as 'N' | 'H' | 'V',
+                difficulty_name: q.difficulty === 'N' ? 'Nhận biết' : q.difficulty === 'H' ? 'Thông hiểu' : 'Vận dụng',
+                content: q.content,
+                type: 'multiple_choice',
+                choices: q.choices,
+                correct_answer: q.correct_answer,
+                explanation: q.explanation
+              }));
+              
+              supplementaryQuestions.push(...convertedQuestions);
+            }
+          }
+          
+          // Create supplementary round
+          const round: SupplementaryRound = {
+            id: `supp_round_${sessionId}_${difficulty}_${i + 1}`,
+            round_number: i + 1,
+            difficulty,
+            original_wrong_answer: wrongAnswer,
+            original_question: originalQuestion,
+            supplementary_questions: supplementaryQuestions.slice(0, 5), // Ensure exactly 5 questions
+            round_answers: [],
+            round_completed: false,
+            round_passed: false,
+            created_at: new Date()
+          };
+          
+          supplementaryRounds.push(round);
+          
+          // Mark questions as asked
+          supplementaryQuestions.forEach(q => session.asked_question_ids.add(q.id));
+          
+        } catch (error) {
+          console.error(`Error creating round ${i + 1} for ${wrongAnswer.question_id}:`, error);
+        }
+      }
+    }
+    
+    // Store rounds in session
+    session.supplementary_rounds = supplementaryRounds;
+    session.current_supplementary_round = 0;
+    session.wrong_answers_for_supplementary = wrongAnswers;
+    
+    console.log(`Created ${supplementaryRounds.length} supplementary rounds`);
+    return supplementaryRounds;
+  }
+
+  // Get current supplementary round
+  getCurrentSupplementaryRound(sessionId: string): SupplementaryRound | null {
+    const session = this.sessions.get(sessionId);
+    if (!session || session.supplementary_rounds.length === 0) return null;
+    
+    if (session.current_supplementary_round >= session.supplementary_rounds.length) return null;
+    
+    return session.supplementary_rounds[session.current_supplementary_round];
+  }
+
+  // Submit answers for supplementary round
+  async submitSupplementaryRoundAnswers(sessionId: string, answers: Answer[]): Promise<{
+    round: SupplementaryRound;
+    passed: boolean;
+    accuracy: number;
+    hasNextRound: boolean;
+    allRoundsCompleted: boolean;
+  }> {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+    
+    const currentRound = this.getCurrentSupplementaryRound(sessionId);
+    if (!currentRound) throw new Error('No current supplementary round found');
+    
+    // Store answers in round
+    currentRound.round_answers = answers;
+    currentRound.round_completed = true;
+    
+    // Calculate performance
+    const correctAnswers = answers.filter(a => a.is_correct).length;
+    const accuracy = (correctAnswers / answers.length) * 100;
+    const passed = accuracy >= 80; // 80% threshold
+    
+    currentRound.round_passed = passed;
+    
+    console.log(`Round ${currentRound.round_number} completed: ${correctAnswers}/${answers.length} (${accuracy.toFixed(1)}%) - ${passed ? 'PASSED' : 'FAILED'}`);
+    
+    // Check if there are more rounds
+    const hasNextRound = session.current_supplementary_round + 1 < session.supplementary_rounds.length;
+    const allRoundsCompleted = !hasNextRound;
+    
+    // Update session
+    this.sessions.set(sessionId, session);
+    
+    return {
+      round: currentRound,
+      passed,
+      accuracy,
+      hasNextRound,
+      allRoundsCompleted
+    };
+  }
+
+  // Move to next supplementary round
+  moveToNextSupplementaryRound(sessionId: string): SupplementaryRound | null {
+    const session = this.sessions.get(sessionId);
+    if (!session) return null;
+    
+    session.current_supplementary_round++;
+    this.sessions.set(sessionId, session);
+    
+    return this.getCurrentSupplementaryRound(sessionId);
+  }
+
+  // Generate individual round review
+  async generateSupplementaryRoundReview(sessionId: string, roundId: string): Promise<ReviewSession> {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+    
+    const round = session.supplementary_rounds.find(r => r.id === roundId);
+    if (!round) throw new Error('Round not found');
+    
+    console.log(`Generating review for round ${round.round_number}`);
+    
+    // Analyze round performance
+    const wrongAnswers = round.round_answers.filter(a => !a.is_correct);
+    const correctAnswers = round.round_answers.filter(a => a.is_correct);
+    
+    // Create lesson summary for this specific round
+    const lesson_summary: { [lesson: number]: any } = {};
+    const lessonId = round.original_question.lesson_id;
+    
+    const topicMap: { [key: number]: string } = {
+      1: "Tính đơn điệu và cực trị của hàm số",
+      2: "Giá trị lớn nhất - nhỏ nhất của hàm số", 
+      3: "Đường tiệm cận của đồ thị hàm số",
+      4: "Khảo sát sự biến thiên và vẽ đồ thị hàm số",
+      5: "Ứng dụng đạo hàm và khảo sát hàm số để giải quyết bài toán thực tế"
+    };
+    
+    lesson_summary[lessonId] = {
+      total_questions: round.round_answers.length,
+      correct_answers: correctAnswers.length,
+      accuracy: round.round_answers.length > 0 ? (correctAnswers.length / round.round_answers.length) * 100 : 0,
+      weak_topics: wrongAnswers.length > 0 ? [topicMap[lessonId]] : [],
+      strong_topics: correctAnswers.length > 0 ? [topicMap[lessonId]] : [],
+      original_question: {
+        content: round.original_question.content,
+        explanation: round.original_question.explanation
+      },
+      detailed_explanations: await this.generateDetailedExplanationsForRound(round, wrongAnswers)
+    };
+    
+    // Generate recommendations for this round
+    const recommendations = await this.generateRoundRecommendations(round, wrongAnswers.length > 0);
+    
+    const reviewSession: ReviewSession = {
+      id: `round_review_${roundId}`,
+      difficulty: round.difficulty,
+      lesson_summary,
+      overall_performance: {
+        total_questions: round.round_answers.length,
+        correct_answers: correctAnswers.length,
+        accuracy: round.round_answers.length > 0 ? (correctAnswers.length / round.round_answers.length) * 100 : 0,
+        time_spent: round.round_answers.reduce((sum, a) => sum + a.time_spent, 0)
+      },
+      recommendations,
+      next_difficulty_preparation: round.round_passed ? 
+        [`Tuyệt vời! Bạn đã nắm vững bài học ${lessonId}. Tiếp tục với ${round.round_number < session.supplementary_rounds.length ? 'bài tập bổ sung tiếp theo' : 'độ khó cao hơn'}.`] :
+        [`Cần ôn tập thêm về bài ${lessonId}. Hãy xem lại lý thuyết và lời giải chi tiết.`],
+      created_at: new Date()
+    };
+    
+    // Store review in round
+    round.round_review_session = reviewSession;
+    session.review_sessions.push(reviewSession);
+    this.sessions.set(sessionId, session);
+    
+    return reviewSession;
+  }
+
+  // Generate detailed explanations for round
+  private async generateDetailedExplanationsForRound(round: SupplementaryRound, wrongAnswers: Answer[]): Promise<any[]> {
+    const explanations = [];
+    
+    for (const wrongAnswer of wrongAnswers) {
+      const question = round.supplementary_questions.find(q => q.id === wrongAnswer.question_id);
+      if (question) {
+        explanations.push({
+          question_id: question.id,
+          lesson_id: question.lesson_id,
+          content: question.content,
+          correct_answer: question.choices[question.correct_answer],
+          student_answer: question.choices[wrongAnswer.student_answer],
+          explanation: question.explanation,
+          theory_summary: `Lý thuyết bài ${question.lesson_id}: ${this.getTheoryForLesson(question.lesson_id)}`,
+          step_by_step_solution: "Xem lời giải chi tiết trong phần giải thích.",
+          common_mistakes: "Lỗi thường gặp: Không hiểu rõ khái niệm cơ bản, áp dụng công thức sai.",
+          similar_exercises: "Hãy luyện tập thêm các bài tương tự trong sách giáo khoa."
+        });
+      }
+    }
+    
+    return explanations;
+  }
+
+  // Generate recommendations for round
+  private async generateRoundRecommendations(round: SupplementaryRound, hasErrors: boolean): Promise<string[]> {
+    const recommendations = [];
+    
+    if (round.round_passed) {
+      recommendations.push(`🎉 Xuất sắc! Bạn đã hoàn thành tốt bài tập bổ sung cho bài ${round.original_question.lesson_id}.`);
+      recommendations.push(`💪 Tiếp tục duy trì phong độ này trong các bài tập tiếp theo.`);
+    } else {
+      recommendations.push(`📚 Cần ôn tập lại lý thuyết bài ${round.original_question.lesson_id}.`);
+      recommendations.push(`🔍 Xem lại lời giải chi tiết của câu hỏi gốc và các câu bị sai.`);
+      recommendations.push(`✍️ Luyện tập thêm các dạng bài tương tự.`);
+      
+      if (hasErrors) {
+        recommendations.push(`⚠️ Chú ý đến những lỗi sai phổ biến đã được chỉ ra.`);
+      }
+    }
+    
+    return recommendations;
+  }
+
+  // Helper method to get theory for lesson
+  private getTheoryForLesson(lessonId: number): string {
+    const theoryMap: { [key: number]: string } = {
+      1: "Tính đơn điệu của hàm số được xác định bởi dấu của đạo hàm. Hàm số đồng biến khi f'(x) > 0, nghịch biến khi f'(x) < 0.",
+      2: "Giá trị lớn nhất và nhỏ nhất của hàm số trên một khoảng được tìm bằng cách so sánh giá trị tại các điểm tới hạn và điểm biên.",
+      3: "Đường tiệm cận đứng tại x = a khi lim(x→a) f(x) = ±∞. Tiệm cận ngang y = L khi lim(x→±∞) f(x) = L.",
+      4: "Khảo sát hàm số bao gồm: tìm tập xác định, đạo hàm, điểm tới hạn, khoảng đơn điệu, cực trị, tiệm cận và vẽ đồ thị.",
+      5: "Ứng dụng đạo hàm giải quyết các bài toán thực tế như tối ưu hóa, tìm cực trị có điều kiện, phân tích tốc độ biến thiên."
+    };
+    
+    return theoryMap[lessonId] || "Lý thuyết cần được ôn tập.";
+  }
+
+  // Generate supplementary bundle - MODIFIED for compatibility
   async generateSupplementaryBundle(sessionId: string, wrongAnswers: Answer[], difficulty: 'N' | 'H' | 'V'): Promise<Question[]> {
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error('Session not found');
@@ -725,52 +1042,43 @@ export class AdaptiveLearningManager {
           // Passed (4/5), go to review
           needsReview = true;
         } else {
-          // Failed (<4/5), go to fail review first
-          needsReview = true;
+          // Failed (<4/5), create supplementary rounds and start first round
+          console.log('Creating supplementary rounds for failed evaluation');
+          await this.generateSupplementaryRounds(sessionId, evaluation.wrongAnswers, session.current_difficulty);
+          
+          // Set state to first supplementary round
+          session.current_state = `SUPP_ROUND_${session.current_difficulty}_1` as SessionState;
+          
+          // Get first round questions
+          const firstRound = this.getCurrentSupplementaryRound(sessionId);
+          if (firstRound) {
+            nextBundle = firstRound.supplementary_questions;
+          }
         }
         break;
 
-      case 'SUPP_N':
-      case 'SUPP_H':
-      case 'SUPP_V':
-        const suppEvaluation = this.evaluateBundle(sessionId, answers);
+      // Handle supplementary rounds
+      case 'SUPP_ROUND_N_1':
+      case 'SUPP_ROUND_N_2':
+      case 'SUPP_ROUND_N_3':
+      case 'SUPP_ROUND_N_4':
+      case 'SUPP_ROUND_N_5':
+      case 'SUPP_ROUND_H_1':
+      case 'SUPP_ROUND_H_2':
+      case 'SUPP_ROUND_H_3':
+      case 'SUPP_ROUND_H_4':
+      case 'SUPP_ROUND_H_5':
+      case 'SUPP_ROUND_V_1':
+      case 'SUPP_ROUND_V_2':
+      case 'SUPP_ROUND_V_3':
+      case 'SUPP_ROUND_V_4':
+      case 'SUPP_ROUND_V_5':
+        const roundResult = await this.submitSupplementaryRoundAnswers(sessionId, answers);
         
-        // Calculate percentage for supplementary questions (80% threshold)
-        const totalSuppQuestions = answers.length;
-        const correctSuppAnswers = suppEvaluation.score;
-        const suppPercentage = (correctSuppAnswers / totalSuppQuestions) * 100;
-        
-        // Always go to review after supplementary questions
+        // Always go to round review first
+        session.current_state = `REVIEW_SUPP_ROUND_${session.current_difficulty}_${roundResult.round.round_number}` as SessionState;
         needsReview = true;
-        wrongAnswers = suppEvaluation.wrongAnswers;
-        
-        if (suppPercentage >= 80) {
-          // Passed supplementary (80%+), move to success review then next difficulty
-          switch (session.current_difficulty) {
-            case 'N':
-              session.current_state = 'REVIEW_SUPP_N';
-              break;
-            case 'H':
-              session.current_state = 'REVIEW_SUPP_H';
-              break;
-            case 'V':
-              session.current_state = 'REVIEW_SUPP_V';
-              break;
-          }
-        } else {
-          // Failed supplementary (<80%), move to detailed review then next difficulty
-          switch (session.current_difficulty) {
-            case 'N':
-              session.current_state = 'REVIEW_SUPP_FAIL_N';
-              break;
-            case 'H':
-              session.current_state = 'REVIEW_SUPP_FAIL_H';
-              break;
-            case 'V':
-              session.current_state = 'REVIEW_SUPP_FAIL_V';
-              break;
-          }
-        }
+        wrongAnswers = roundResult.round.round_answers.filter(a => !a.is_correct);
         break;
 
       case 'TUTOR_N':
@@ -1391,12 +1699,259 @@ Trả về JSON:
     return { session, nextBundle };
   }
 
-  // Continue after fail review - move to supplementary questions
+  // Continue after individual round review - NEW METHOD
+  async continueAfterRoundReview(sessionId: string, roundId: string): Promise<{ 
+    session: Session; 
+    nextBundle?: Question[]; 
+    hasNextRound: boolean;
+    allRoundsCompleted: boolean;
+    needsFinalReview: boolean;
+  }> {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+
+    console.log('Continue after round review:', { sessionId, roundId });
+
+    const round = session.supplementary_rounds.find(r => r.id === roundId);
+    if (!round) throw new Error('Round not found');
+
+    // Move to next round
+    const nextRound = this.moveToNextSupplementaryRound(sessionId);
+    const hasNextRound = nextRound !== null;
+    const allRoundsCompleted = !hasNextRound;
+
+    let nextBundle: Question[] | undefined;
+    let needsFinalReview = false;
+
+    if (hasNextRound && nextRound) {
+      // Start next supplementary round
+      session.current_state = `SUPP_ROUND_${session.current_difficulty}_${nextRound.round_number}` as SessionState;
+      nextBundle = nextRound.supplementary_questions;
+      console.log(`Moving to round ${nextRound.round_number} with ${nextBundle.length} questions`);
+    } else {
+      // All rounds completed, determine final outcome
+      needsFinalReview = true;
+      
+      // Calculate overall supplementary performance
+      const totalRoundQuestions = session.supplementary_rounds.reduce((sum, r) => sum + r.round_answers.length, 0);
+      const totalCorrectRoundAnswers = session.supplementary_rounds.reduce((sum, r) => 
+        sum + r.round_answers.filter(a => a.is_correct).length, 0);
+      const overallSupplementaryAccuracy = totalRoundQuestions > 0 ? 
+        (totalCorrectRoundAnswers / totalRoundQuestions) * 100 : 0;
+
+      console.log(`All rounds completed. Overall accuracy: ${overallSupplementaryAccuracy.toFixed(1)}%`);
+
+      if (overallSupplementaryAccuracy >= 80) {
+        // Passed overall, move to next difficulty or end
+        if (session.current_difficulty === 'N') {
+          session.current_state = 'BUNDLE_H';
+          session.current_difficulty = 'H';
+          nextBundle = await this.generateInitialBundle('H', session.asked_question_ids);
+          session.used_bundles['H'] = [...nextBundle];
+          needsFinalReview = false; // Skip review, go directly to next difficulty
+        } else if (session.current_difficulty === 'H') {
+          session.current_state = 'BUNDLE_V';
+          session.current_difficulty = 'V';
+          nextBundle = await this.generateInitialBundle('V', session.asked_question_ids);
+          session.used_bundles['V'] = [...nextBundle];
+          needsFinalReview = false; // Skip review, go directly to next difficulty
+        } else {
+          session.current_state = 'END';
+        }
+      } else {
+        // Failed overall, show final supplementary review
+        session.current_state = 'REVIEW_SUPP_FAIL_' + session.current_difficulty as SessionState;
+      }
+    }
+
+    session.current_bundle = nextBundle || [];
+    session.current_question_index = 0;
+    this.sessions.set(sessionId, session);
+
+    return { 
+      session, 
+      nextBundle, 
+      hasNextRound, 
+      allRoundsCompleted, 
+      needsFinalReview 
+    };
+  }
+
+  // Generate final supplementary review after all rounds completed - NEW METHOD
+  async generateFinalSupplementaryReview(sessionId: string, difficulty: 'N' | 'H' | 'V'): Promise<ReviewSession> {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error('Session not found');
+
+    console.log(`Generating final supplementary review for difficulty: ${difficulty}`);
+
+    // Aggregate all round results
+    const allRoundAnswers = session.supplementary_rounds.reduce((acc, round) => [...acc, ...round.round_answers], [] as Answer[]);
+    const wrongAnswers = allRoundAnswers.filter(a => !a.is_correct);
+    const correctAnswers = allRoundAnswers.filter(a => a.is_correct);
+
+    // Group by lesson
+    const lessonSummary: { [lesson: number]: any } = {};
+    const topicMap: { [key: number]: string } = {
+      1: "Tính đơn điệu và cực trị của hàm số",
+      2: "Giá trị lớn nhất - nhỏ nhất của hàm số", 
+      3: "Đường tiệm cận của đồ thị hàm số",
+      4: "Khảo sát sự biến thiên và vẽ đồ thị hàm số",
+      5: "Ứng dụng đạo hàm và khảo sát hàm số để giải quyết bài toán thực tế"
+    };
+
+    // Aggregate by lesson
+    const lessonStats: { [lesson: number]: { total: number; correct: number; rounds: SupplementaryRound[] } } = {};
+    
+    session.supplementary_rounds.forEach(round => {
+      const lessonId = round.original_question.lesson_id;
+      if (!lessonStats[lessonId]) {
+        lessonStats[lessonId] = { total: 0, correct: 0, rounds: [] };
+      }
+      lessonStats[lessonId].total += round.round_answers.length;
+      lessonStats[lessonId].correct += round.round_answers.filter(a => a.is_correct).length;
+      lessonStats[lessonId].rounds.push(round);
+    });
+
+    // Create detailed lesson summary
+    for (const [lessonIdStr, stats] of Object.entries(lessonStats)) {
+      const lessonId = parseInt(lessonIdStr);
+      const accuracy = stats.total > 0 ? (stats.correct / stats.total) * 100 : 0;
+      
+      lessonSummary[lessonId] = {
+        total_questions: stats.total,
+        correct_answers: stats.correct,
+        accuracy: accuracy,
+        weak_topics: accuracy < 80 ? [topicMap[lessonId]] : [],
+        strong_topics: accuracy >= 80 ? [topicMap[lessonId]] : [],
+        rounds_summary: stats.rounds.map(round => ({
+          round_number: round.round_number,
+          passed: round.round_passed,
+          accuracy: round.round_answers.length > 0 ? 
+            (round.round_answers.filter(a => a.is_correct).length / round.round_answers.length) * 100 : 0
+        })),
+        detailed_explanations: this.generateAggregatedExplanationsSync(stats.rounds, wrongAnswers)
+      };
+    }
+
+    // Calculate overall performance
+    const totalQuestions = allRoundAnswers.length;
+    const totalCorrect = correctAnswers.length;
+    const overallAccuracy = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
+
+    // Generate comprehensive recommendations
+    const recommendations = await this.generateFinalSupplementaryRecommendations(lessonSummary, overallAccuracy, session.supplementary_rounds);
+
+    const reviewSession: ReviewSession = {
+      id: `final_supp_review_${sessionId}_${difficulty}_${Date.now()}`,
+      difficulty,
+      lesson_summary: lessonSummary,
+      overall_performance: {
+        total_questions: totalQuestions,
+        correct_answers: totalCorrect,
+        accuracy: overallAccuracy,
+        time_spent: allRoundAnswers.reduce((sum, a) => sum + a.time_spent, 0)
+      },
+      recommendations,
+      next_difficulty_preparation: overallAccuracy >= 80 ? 
+        [`🎉 Xuất sắc! Bạn đã hoàn thành tốt tất cả bài tập bổ sung. Sẵn sàng cho độ khó tiếp theo!`] :
+        [`📚 Cần tiếp tục ôn tập để củng cố kiến thức trước khi chuyển sang độ khó tiếp theo.`],
+      created_at: new Date()
+    };
+
+    session.review_sessions.push(reviewSession);
+    this.sessions.set(sessionId, session);
+
+    return reviewSession;
+  }
+
+  // Generate aggregated explanations for final review - SYNC version
+  private generateAggregatedExplanationsSync(rounds: SupplementaryRound[], wrongAnswers: Answer[]): any[] {
+    const explanations = [];
+    
+    for (const round of rounds) {
+      const roundWrongAnswers = round.round_answers.filter(a => !a.is_correct);
+      for (const wrongAnswer of roundWrongAnswers) {
+        const question = round.supplementary_questions.find(q => q.id === wrongAnswer.question_id);
+        if (question) {
+          explanations.push({
+            question_id: question.id,
+            lesson_id: question.lesson_id,
+            round_number: round.round_number,
+            content: question.content,
+            correct_answer: question.choices[question.correct_answer],
+            student_answer: question.choices[wrongAnswer.student_answer],
+            explanation: question.explanation,
+            theory_summary: this.getTheoryForLesson(question.lesson_id),
+            original_question_content: round.original_question.content
+          });
+        }
+      }
+    }
+    
+    return explanations;
+  }
+
+  // Generate aggregated explanations for final review
+  private async generateAggregatedExplanations(rounds: SupplementaryRound[], wrongAnswers: Answer[]): Promise<any[]> {
+    const explanations = [];
+    
+    for (const round of rounds) {
+      const roundWrongAnswers = round.round_answers.filter(a => !a.is_correct);
+      for (const wrongAnswer of roundWrongAnswers) {
+        const question = round.supplementary_questions.find(q => q.id === wrongAnswer.question_id);
+        if (question) {
+          explanations.push({
+            question_id: question.id,
+            lesson_id: question.lesson_id,
+            round_number: round.round_number,
+            content: question.content,
+            correct_answer: question.choices[question.correct_answer],
+            student_answer: question.choices[wrongAnswer.student_answer],
+            explanation: question.explanation,
+            theory_summary: this.getTheoryForLesson(question.lesson_id),
+            original_question_content: round.original_question.content
+          });
+        }
+      }
+    }
+    
+    return explanations;
+  }
+
+  // Generate final supplementary recommendations
+  private async generateFinalSupplementaryRecommendations(lessonSummary: any, overallAccuracy: number, rounds: SupplementaryRound[]): Promise<string[]> {
+    const recommendations = [];
+    
+    if (overallAccuracy >= 80) {
+      recommendations.push(`🎉 Tuyệt vời! Bạn đã hoàn thành xuất sắc tất cả ${rounds.length} vòng bài tập bổ sung.`);
+      recommendations.push(`💪 Khả năng học hỏi và cải thiện của bạn rất tốt.`);
+      recommendations.push(`🚀 Sẵn sàng để thử thách với độ khó cao hơn!`);
+    } else {
+      recommendations.push(`📈 Bạn đã cố gắng hoàn thành ${rounds.length} vòng bài tập bổ sung.`);
+      recommendations.push(`🎯 Tỷ lệ chính xác tổng thể: ${overallAccuracy.toFixed(1)}%`);
+      
+      // Identify weakest lessons
+      const weakLessons = Object.entries(lessonSummary)
+        .filter(([_, summary]: [string, any]) => summary.accuracy < 60)
+        .map(([lessonId, _]) => lessonId);
+      
+      if (weakLessons.length > 0) {
+        recommendations.push(`⚠️ Cần tập trung ôn tập thêm các bài: ${weakLessons.join(', ')}`);
+      }
+      
+      recommendations.push(`📚 Hãy xem lại lý thuyết và lời giải chi tiết.`);
+      recommendations.push(`✍️ Luyện tập thêm các dạng bài tương tự.`);
+    }
+    
+    return recommendations;
+  }
+
+  // Continue after fail review - MODIFIED to use new round system
   async continueAfterFailReview(sessionId: string, difficulty: 'N' | 'H' | 'V'): Promise<{ session: Session; nextBundle?: Question[] }> {
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error('Session not found');
 
-    console.log('Continue after fail review debug:', {
+    console.log('Continue after fail review - creating supplementary rounds:', {
       difficulty,
       currentState: session.current_state,
       currentDifficulty: session.current_difficulty
@@ -1406,31 +1961,27 @@ Trả về JSON:
     const initialBundleAnswers = session.answers_by_difficulty[difficulty] || [];
     const wrongAnswers = initialBundleAnswers.filter(a => !a.is_correct);
 
-    // Generate supplementary questions based on wrong answers
-    const supplementaryBundle = await this.generateSupplementaryBundle(sessionId, wrongAnswers, difficulty);
-    
-    // Update session state to supplementary questions
-    switch (difficulty) {
-      case 'N':
-        session.current_state = 'SUPP_N';
-        break;
-      case 'H':
-        session.current_state = 'SUPP_H';
-        break;
-      case 'V':
-        session.current_state = 'SUPP_V';
-        break;
+    if (wrongAnswers.length === 0) {
+      throw new Error('No wrong answers found for supplementary rounds');
     }
 
-    // Set the supplementary bundle as current bundle
-    session.current_bundle = supplementaryBundle;
+    // Generate supplementary rounds instead of single bundle
+    await this.generateSupplementaryRounds(sessionId, wrongAnswers, difficulty);
+    
+    // Start first supplementary round
+    session.current_state = `SUPP_ROUND_${difficulty}_1` as SessionState;
+    
+    const firstRound = this.getCurrentSupplementaryRound(sessionId);
+    const nextBundle = firstRound ? firstRound.supplementary_questions : [];
+
+    session.current_bundle = nextBundle;
     session.current_question_index = 0;
 
     this.sessions.set(sessionId, session);
-    return { session, nextBundle: supplementaryBundle };
+    return { session, nextBundle };
   }
 
-  // Continue after supplementary review (both success and fail)
+  // Continue after supplementary review (both success and fail) - MODIFIED
   async continueAfterSupplementaryReview(sessionId: string, difficulty: 'N' | 'H' | 'V'): Promise<{ session: Session; nextBundle?: Question[] }> {
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error('Session not found');
