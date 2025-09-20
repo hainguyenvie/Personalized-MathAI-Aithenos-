@@ -214,27 +214,35 @@ export class AICacheManager {
     const topic = topicMap[lessonId] || "Toán học lớp 12";
     
     const prompt = `
-Tạo ${count} câu hỏi trắc nghiệm toán học lớp 12:
+Tạo ${count} câu hỏi trắc nghiệm toán học lớp 12 chất lượng cao:
 
 CHỦ ĐỀ: ${topic}
 ĐỘ KHÓ: ${difficulty === 'N' ? 'Nhận biết' : difficulty === 'H' ? 'Thông hiểu' : 'Vận dụng'}
 SỐ CÂU: ${count}
 
-YÊU CẦU:
+YÊU CẦU QUAN TRỌNG:
 1. Mỗi câu có 4 đáp án trắc nghiệm (A, B, C, D)
 2. Đảm bảo có 1 đáp án đúng và 3 đáp án sai hợp lý
 3. Phù hợp với chương trình toán lớp 12
-4. Có giải thích chi tiết cho đáp án đúng
-5. Sử dụng ký hiệu toán học LaTeX khi cần
+4. **BẮT BUỘC**: Có giải thích chi tiết và đầy đủ cho đáp án đúng
+5. **BẮT BUỘC**: Có phần lý thuyết liên quan để học sinh hiểu
+6. Sử dụng ký hiệu toán học LaTeX trong $...$ hoặc $$...$$ khi cần
+7. Giải thích phải đủ chi tiết để học sinh hiểu tại sao đáp án đó đúng
+
+VÍ DỤ FORMAT MONG MUỐN:
+- Nội dung: "Cho hàm số $y = x^3 - 3x + 1$. Tìm khoảng đồng biến của hàm số."
+- Lý thuyết: "Hàm số đồng biến trên khoảng $(a;b)$ khi $y' > 0$ với mọi $x \\in (a;b)$"
+- Giải thích: "Ta có $y' = 3x^2 - 3 = 3(x^2 - 1) = 3(x-1)(x+1)$. Hàm số đồng biến khi $y' > 0 \\Leftrightarrow (x-1)(x+1) > 0 \\Leftrightarrow x \\in (-\\infty; -1) \\cup (1; +\\infty)$"
 
 Trả về JSON:
 {
   "questions": [
     {
-      "content": "Nội dung câu hỏi",
+      "content": "Nội dung câu hỏi (có thể có LaTeX)",
       "choices": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
       "correct_answer": 0,
-      "explanation": "Giải thích chi tiết"
+      "theory": "Lý thuyết cần thiết để giải bài (có thể có LaTeX)",
+      "explanation": "Giải thích chi tiết từng bước (có thể có LaTeX)"
     }
   ]
 }
@@ -246,7 +254,7 @@ Trả về JSON:
         messages: [
           {
             role: "system",
-            content: "Bạn là giáo viên toán học có kinh nghiệm. Hãy tạo câu hỏi trắc nghiệm chất lượng cao, phù hợp với chương trình lớp 12."
+            content: "Bạn là giáo viên toán học có kinh nghiệm cao, chuyên gia về chương trình lớp 12. Hãy tạo câu hỏi trắc nghiệm chất lượng cao với giải thích chi tiết và lý thuyết đầy đủ. Sử dụng LaTeX để viết công thức toán học. Đảm bảo lý thuyết và giải thích phải đủ chi tiết để học sinh hiểu sâu kiến thức."
           },
           { role: "user", content: prompt }
         ],
@@ -262,6 +270,7 @@ Trả về JSON:
         choices: q.choices,
         correct_answer: q.correct_answer,
         explanation: q.explanation,
+        theory: q.theory || "Lý thuyết cần được bổ sung",
         difficulty: difficulty,
         lesson_id: lessonId
       }));

@@ -59,6 +59,11 @@ interface ReviewSession {
       accuracy: number;
       weak_topics: string[];
       strong_topics: string[];
+      rounds_summary?: Array<{
+        round_number: number;
+        passed: boolean;
+        accuracy: number;
+      }>;
       detailed_explanations?: Array<{
         question_id: string;
         lesson_id: number;
@@ -68,6 +73,10 @@ interface ReviewSession {
         step_by_step_solution: string;
         common_mistakes: string;
         similar_exercises: string;
+        round_number?: number;
+        correct_answer?: string;
+        student_answer?: string;
+        original_question_content?: string;
       }>;
     }
   };
@@ -80,6 +89,17 @@ interface ReviewSession {
   recommendations: string[];
   next_difficulty_preparation: string[];
   created_at: string;
+}
+
+interface SupplementaryRound {
+  id: string;
+  round_number: number;
+  difficulty: string;
+  questions: Question[];
+  original_question: {
+    content: string;
+    lesson_id: number;
+  };
 }
 
 export default function AdaptiveLearning() {
@@ -103,6 +123,13 @@ export default function AdaptiveLearning() {
   const [report, setReport] = useState<any>(null);
   const [showReview, setShowReview] = useState(false);
   const [reviewSession, setReviewSession] = useState<ReviewSession | null>(null);
+  // NEW STATES for round-based supplementary system
+  const [isSupplementaryMode, setIsSupplementaryMode] = useState(false);
+  const [currentSupplementaryRound, setCurrentSupplementaryRound] = useState<SupplementaryRound | null>(null);
+  const [supplementaryRounds, setSupplementaryRounds] = useState<any[]>([]);
+  const [showRoundReview, setShowRoundReview] = useState(false);
+  const [currentRoundReview, setCurrentRoundReview] = useState<ReviewSession | null>(null);
+  const [allRoundsCompleted, setAllRoundsCompleted] = useState(false);
 
   // Initialize session
   const initializeSession = async (studentName: string, grade: string) => {
@@ -160,6 +187,14 @@ export default function AdaptiveLearning() {
   const submitAnswer = async () => {
     if (selectedAnswer === null || !session) return;
 
+    console.log('submitAnswer DEBUG:', {
+      currentQuestionIndex,
+      totalQuestions: currentBundle.length,
+      selectedAnswer,
+      isSupplementaryMode,
+      currentRoundNumber: currentSupplementaryRound?.round_number
+    });
+
     const currentQuestion = currentBundle[currentQuestionIndex];
     const isCorrect = selectedAnswer === currentQuestion.choices.findIndex((_, i) => i === 0); // Simplified check
     
@@ -175,17 +210,28 @@ export default function AdaptiveLearning() {
 
     // Move to next question or submit bundle
     if (currentQuestionIndex < currentBundle.length - 1) {
+      console.log('Moving to next question:', currentQuestionIndex + 1);
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setSelectedAnswer(null);
     } else {
+      console.log('Last question reached, submitting bundle with', newAnswers.length, 'answers');
       await submitBundle(session.id, newAnswers);
     }
   };
 
-  // Submit bundle
+  // Submit bundle - UPDATED for round-based system
   const submitBundle = async (sessionId: string, bundleAnswers: typeof answers) => {
     try {
       setLoading(true);
+      
+      // Check if we're in supplementary round mode
+      if (isSupplementaryMode && currentSupplementaryRound) {
+        console.log('Submitting supplementary round answers');
+        await submitSupplementaryRoundAnswers(sessionId, bundleAnswers);
+        return;
+      }
+      
+      // Regular bundle submission
       const response = await fetch(`/api/adaptive-optimized/sessions/${sessionId}/answers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -201,23 +247,30 @@ export default function AdaptiveLearning() {
         if (data.needs_tutor) {
           console.log('Need tutor session');
           setShowTutor(true);
-          // Pass wrong answers to tutor session
           await startTutorSession(sessionId, data.wrong_answers || bundleAnswers);
         } else if (data.needs_review || data.session.current_state?.startsWith('REVIEW_')) {
           console.log('Need review session, current state:', data.session.current_state);
-          // Check if this is a detailed supplementary review
-          if (data.session.current_state?.startsWith('REVIEW_SUPP_FAIL_')) {
+          
+          // Check if we need to start supplementary rounds
+          if (data.session.current_state?.startsWith('REVIEW_FAIL_') && !data.session.current_state?.startsWith('REVIEW_SUPP_')) {
+            await showReviewSession(sessionId, data.session.current_difficulty);
+          } else if (data.session.current_state?.startsWith('REVIEW_SUPP_FAIL_')) {
             await showDetailedSupplementaryReview(sessionId, data.session.current_difficulty);
           } else {
-            // Show regular review session (for both main difficulty and supplementary success)
             await showReviewSession(sessionId, data.session.current_difficulty);
           }
         } else if (data.next_bundle) {
           console.log('Got next bundle:', data.next_bundle.length, 'questions');
-          setCurrentBundle(data.next_bundle);
-          setCurrentQuestionIndex(0);
-          setSelectedAnswer(null);
-          setAnswers([]);
+          
+          // Check if this is a supplementary round
+          if (data.session.current_state?.includes('SUPP_ROUND_')) {
+            await handleSupplementaryRoundStart(sessionId, data.next_bundle);
+          } else {
+            setCurrentBundle(data.next_bundle);
+            setCurrentQuestionIndex(0);
+            setSelectedAnswer(null);
+            setAnswers([]);
+          }
         } else if (data.session.current_state === 'END') {
           await generateReport(sessionId);
         }
@@ -228,6 +281,168 @@ export default function AdaptiveLearning() {
       setError('Failed to submit bundle');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // NEW: Submit supplementary round answers
+  const submitSupplementaryRoundAnswers = async (sessionId: string, bundleAnswers: typeof answers) => {
+    try {
+      console.log('Submitting round answers:', bundleAnswers.length);
+      
+      const response = await fetch(`/api/adaptive-optimized/sessions/${sessionId}/supplementary/submit-round`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: bundleAnswers })
+      });
+      
+      const data = await response.json();
+      console.log('Round submission response:', data);
+      
+      if (data.success) {
+        // Show round review
+        await showSupplementaryRoundReview(sessionId, currentSupplementaryRound!.id, data.round);
+      } else {
+        setError(data.error || 'Failed to submit round answers');
+      }
+    } catch (err) {
+      console.error('Error submitting round answers:', err);
+      setError('Failed to submit round answers');
+    }
+  };
+
+  // NEW: Handle supplementary round start
+  const handleSupplementaryRoundStart = async (sessionId: string, expectedQuestions?: Question[]) => {
+    try {
+      console.log('Starting supplementary round mode');
+      
+      // Get current round info
+      const response = await fetch(`/api/adaptive-optimized/sessions/${sessionId}/supplementary/current-round`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setIsSupplementaryMode(true);
+        setCurrentSupplementaryRound(data.round);
+        // Use API response data instead of parameter to avoid stale data
+        setCurrentBundle(data.round.supplementary_questions);
+        setCurrentQuestionIndex(0);
+        setSelectedAnswer(null);
+        setAnswers([]);
+        
+        console.log(`Started round ${data.round.round_number} with ${data.round.supplementary_questions.length} questions`);
+        
+        // Debug: Compare with expected if provided
+        if (expectedQuestions) {
+          console.log('DEBUG: Expected vs Actual questions:', {
+            expected_count: expectedQuestions.length,
+            actual_count: data.round.supplementary_questions.length,
+            expected_first_id: expectedQuestions[0]?.id,
+            actual_first_id: data.round.supplementary_questions[0]?.id
+          });
+        }
+      } else {
+        setError('Failed to get round information');
+      }
+    } catch (err) {
+      console.error('Error starting supplementary round:', err);
+      setError('Failed to start supplementary round');
+    }
+  };
+
+  // NEW: Show supplementary round review
+  const showSupplementaryRoundReview = async (sessionId: string, roundId: string, roundResult: any) => {
+    try {
+      console.log('Generating round review for round:', roundId);
+      
+      const response = await fetch(`/api/adaptive-optimized/sessions/${sessionId}/supplementary/round/${roundId}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setCurrentRoundReview(data.review);
+        setShowRoundReview(true);
+        
+        // Store round result for later use
+        // Removed roundResult.all_rounds_completed as it doesn't exist
+        console.log('Round review loaded successfully');
+      } else {
+        setError('Failed to generate round review');
+      }
+    } catch (err) {
+      console.error('Error generating round review:', err);
+      setError('Failed to generate round review');
+    }
+  };
+
+  // NEW: Continue after round review
+  const continueAfterRoundReview = async () => {
+    if (!session || !currentSupplementaryRound || !currentRoundReview) return;
+    
+    try {
+      setLoading(true);
+      
+      const response = await fetch(`/api/adaptive-optimized/sessions/${session.id}/supplementary/round/${currentSupplementaryRound.id}/continue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const data = await response.json();
+      console.log('Continue after round review response:', data);
+      
+      if (data.success) {
+        setShowRoundReview(false);
+        setCurrentRoundReview(null);
+        
+        if (data.hasMoreRounds && data.nextRound) {
+          // Move to next round
+          console.log('Moving to next round');
+          await handleSupplementaryRoundStart(session.id, data.nextRound.supplementary_questions);
+        } else if (data.completed) {
+          console.log('All rounds completed');
+          setAllRoundsCompleted(true);
+          setIsSupplementaryMode(false);
+          setCurrentSupplementaryRound(null);
+          
+          // For now, just show completion message
+          console.log('Tất cả vòng bổ sung đã hoàn thành!');
+        }
+      } else {
+        setError(data.error || 'Failed to continue after round review');
+      }
+    } catch (err) {
+      console.error('Error continuing after round review:', err);
+      setError('Failed to continue after round review');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // NEW: Show final supplementary review
+  const showFinalSupplementaryReview = async (sessionId: string, difficulty: string) => {
+    try {
+      console.log('Showing final supplementary review');
+      
+      const response = await fetch(`/api/adaptive-optimized/sessions/${sessionId}/supplementary/final-review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ difficulty })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setReviewSession(data.review_session);
+        setShowReview(true);
+        setIsSupplementaryMode(false);
+        setCurrentSupplementaryRound(null);
+      } else {
+        setError('Failed to generate final supplementary review');
+      }
+    } catch (err) {
+      console.error('Error generating final supplementary review:', err);
+      setError('Failed to generate final supplementary review');
     }
   };
 
@@ -547,11 +762,9 @@ export default function AdaptiveLearning() {
         setReviewSession(null);
         
         if (data.next_bundle) {
-          console.log('Got supplementary bundle after fail review:', data.next_bundle.length, 'questions');
-          setCurrentBundle(data.next_bundle);
-          setCurrentQuestionIndex(0);
-          setSelectedAnswer(null);
-          setAnswers([]);
+          console.log('Starting supplementary round system with', data.next_bundle.length, 'questions');
+          // Enter supplementary round mode
+          await handleSupplementaryRoundStart(session.id, data.next_bundle);
         }
       } else {
         setError(data.error || 'Failed to continue after fail review');
@@ -709,8 +922,8 @@ export default function AdaptiveLearning() {
                               {explanation.theory_summary && (
                                 <div className="mb-3">
                                   <h5 className="font-semibold text-blue-800 mb-2">📖 Lý thuyết liên quan:</h5>
-                                  <div className="prose prose-sm text-blue-700 whitespace-pre-line">
-                                    {explanation.theory_summary}
+                                  <div className="prose prose-sm text-blue-700">
+                                    <MathRenderer content={explanation.theory_summary} />
                                   </div>
                                 </div>
                               )}
@@ -718,8 +931,8 @@ export default function AdaptiveLearning() {
                               {explanation.step_by_step_solution && (
                                 <div className="mb-3">
                                   <h5 className="font-semibold text-green-800 mb-2">🔍 Lời giải từng bước:</h5>
-                                  <div className="prose prose-sm text-green-700 whitespace-pre-line">
-                                    {explanation.step_by_step_solution}
+                                  <div className="prose prose-sm text-green-700">
+                                    <MathRenderer content={explanation.step_by_step_solution} />
                                   </div>
                                 </div>
                               )}
@@ -727,8 +940,8 @@ export default function AdaptiveLearning() {
                               {explanation.common_mistakes && (
                                 <div className="mb-3">
                                   <h5 className="font-semibold text-red-800 mb-2">⚠️ Các lỗi thường gặp:</h5>
-                                  <div className="prose prose-sm text-red-700 whitespace-pre-line">
-                                    {explanation.common_mistakes}
+                                  <div className="prose prose-sm text-red-700">
+                                    <MathRenderer content={explanation.common_mistakes} />
                                   </div>
                                 </div>
                               )}
@@ -736,8 +949,8 @@ export default function AdaptiveLearning() {
                               {explanation.similar_exercises && (
                                 <div>
                                   <h5 className="font-semibold text-purple-800 mb-2">💡 Bài tập tương tự:</h5>
-                                  <div className="prose prose-sm text-purple-700 whitespace-pre-line">
-                                    {explanation.similar_exercises}
+                                  <div className="prose prose-sm text-purple-700">
+                                    <MathRenderer content={explanation.similar_exercises} />
                                   </div>
                                 </div>
                               )}
@@ -893,6 +1106,141 @@ export default function AdaptiveLearning() {
     );
   }
 
+  // NEW: Round Review UI
+  if (showRoundReview && currentRoundReview) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-100 p-4">
+        <div className="max-w-4xl mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Target className="w-6 h-6 text-orange-600" />
+                <span>Kết quả vòng {currentSupplementaryRound?.round_number} - Bài tập bổ sung</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Round Performance */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">{currentRoundReview.overall_performance.total_questions}</div>
+                  <div className="text-sm text-gray-600">Tổng câu hỏi</div>
+                </div>
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">{currentRoundReview.overall_performance.correct_answers}</div>
+                  <div className="text-sm text-gray-600">Câu đúng</div>
+                </div>
+                <div className="text-center p-4 bg-purple-50 rounded-lg">
+                  <div className="text-2xl font-bold text-purple-600">{currentRoundReview.overall_performance.accuracy.toFixed(1)}%</div>
+                  <div className="text-sm text-gray-600">Độ chính xác</div>
+                </div>
+              </div>
+
+              {/* Pass/Fail Status */}
+              <Alert className={currentRoundReview.overall_performance.accuracy >= 80 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}>
+                {currentRoundReview.overall_performance.accuracy >= 80 ? (
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-red-600" />
+                )}
+                <AlertDescription>
+                  <strong>
+                    {currentRoundReview.overall_performance.accuracy >= 80 ? 
+                      `🎉 Xuất sắc! Bạn đã vượt qua vòng ${currentSupplementaryRound?.round_number}` :
+                      `📚 Cần cố gắng thêm. Vòng ${currentSupplementaryRound?.round_number} chưa đạt yêu cầu (cần ≥80%)`
+                    }
+                  </strong>
+                </AlertDescription>
+              </Alert>
+
+              {/* Original Question Context */}
+              {currentSupplementaryRound && (
+                <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <h3 className="font-semibold mb-2">Câu hỏi gốc (Bài {currentSupplementaryRound.original_question.lesson_id}):</h3>
+                  <p className="text-sm text-gray-700">{currentSupplementaryRound.original_question.content}</p>
+                </div>
+              )}
+
+              {/* Detailed Explanations for Wrong Answers */}
+              {Object.values(currentRoundReview.lesson_summary).some(summary => summary.detailed_explanations && summary.detailed_explanations.length > 0) && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-3">Lời giải chi tiết các câu sai</h3>
+                  {Object.entries(currentRoundReview.lesson_summary).map(([lesson, summary]) => (
+                    summary.detailed_explanations && summary.detailed_explanations.length > 0 && (
+                      <div key={lesson} className="space-y-4">
+                        {summary.detailed_explanations.map((explanation: any, index: number) => (
+                          <div key={index} className="p-4 bg-red-50 rounded-lg border border-red-200">
+                            <div className="mb-3">
+                              <h4 className="font-semibold text-red-800">Câu hỏi:</h4>
+                              <p className="text-sm">{explanation.content}</p>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                              <div>
+                                <h4 className="font-semibold text-green-700">Đáp án đúng:</h4>
+                                <p className="text-sm text-green-600">{explanation.correct_answer}</p>
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-red-700">Bạn chọn:</h4>
+                                <p className="text-sm text-red-600">{explanation.student_answer}</p>
+                              </div>
+                            </div>
+                            <div className="mb-3">
+                              <h4 className="font-semibold text-blue-700">Lý thuyết:</h4>
+                              <div className="text-sm text-blue-600">
+                                <MathRenderer content={explanation.theory_summary} />
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-700">Giải thích:</h4>
+                              <div className="text-sm text-gray-600">
+                                <MathRenderer content={explanation.explanation} />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  ))}
+                </div>
+              )}
+
+              {/* Recommendations */}
+              {currentRoundReview.recommendations.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-3">Khuyến nghị</h3>
+                  <ul className="space-y-2">
+                    {currentRoundReview.recommendations.map((rec, index) => (
+                      <li key={index} className="flex items-start space-x-2">
+                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                        <span>{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <Button 
+                onClick={continueAfterRoundReview}
+                disabled={loading}
+                className="w-full h-12 text-lg font-semibold bg-orange-600 hover:bg-orange-700"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    Đang xử lý...
+                  </>
+                ) : allRoundsCompleted ? (
+                  'Hoàn thành tất cả bài tập bổ sung'
+                ) : (
+                  `Tiếp tục vòng ${(currentSupplementaryRound?.round_number || 0) + 1}`
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   if (showTutor && tutorSession) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4">
@@ -971,8 +1319,25 @@ export default function AdaptiveLearning() {
             <div className="flex items-center space-x-4">
               <Badge variant="outline">{session.current_difficulty}</Badge>
               <Badge variant="secondary">Bài {currentQuestion?.lesson_id}</Badge>
+              {/* NEW: Round indicator */}
+              {isSupplementaryMode && currentSupplementaryRound && (
+                <Badge variant="default" className="bg-orange-500">
+                  Bài tập bổ sung - Vòng {currentSupplementaryRound.round_number}
+                </Badge>
+              )}
             </div>
           </div>
+          
+          {/* NEW: Supplementary round info */}
+          {isSupplementaryMode && currentSupplementaryRound && (
+            <Alert className="mb-4 bg-orange-50 border-orange-200">
+              <Target className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Bài tập bổ sung vòng {currentSupplementaryRound.round_number}</strong><br />
+                Dựa trên câu hỏi gốc bài {currentSupplementaryRound.original_question.lesson_id}: {currentSupplementaryRound.original_question.content.substring(0, 100)}...
+              </AlertDescription>
+            </Alert>
+          )}
           
           <div className="space-y-2">
             <div className="flex justify-between text-sm">

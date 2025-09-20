@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { optimizedAdaptiveLearningManager, Question, Answer, Session, TutorSession } from './optimized-adaptive-learning';
+import { optimizedAdaptiveLearningManager, Session, TutorSession, SupplementaryRound, ReviewSession, Answer } from './optimized-adaptive-learning';
+import { Question } from './optimized-question-db';
 import { aiTutor, TutorContext } from './ai-tutor';
 
 const router = Router();
@@ -326,6 +327,163 @@ router.post('/sessions/:sessionId/tutor/:tutorSessionId/retest', async (req, res
   } catch (error) {
     console.error('Error generating retest questions:', error);
     res.status(500).json({ error: 'Failed to generate retest questions' });
+  }
+});
+
+// ===== NEW ROUND-BASED SUPPLEMENTARY SYSTEM ROUTES =====
+
+// Get current supplementary round
+router.get('/sessions/:sessionId/supplementary/current-round', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    
+    const currentRound = optimizedAdaptiveLearningManager.getCurrentSupplementaryRound(sessionId);
+    
+    if (!currentRound) {
+      return res.status(404).json({ error: 'No current supplementary round found' });
+    }
+
+    res.json({
+      success: true,
+      round: {
+        id: currentRound.id,
+        round_number: currentRound.round_number,
+        original_question: {
+          content: currentRound.original_question.content,
+          explanation: currentRound.original_question.explanation
+        },
+        supplementary_questions: currentRound.supplementary_questions.map(q => ({
+          id: q.id,
+          content: q.content,
+          type: q.type,
+          choices: q.choices,
+          difficulty: q.difficulty,
+          difficulty_name: q.difficulty_name,
+          lesson_id: q.lesson_id
+        })),
+        round_completed: currentRound.round_completed
+      }
+    });
+  } catch (error) {
+    console.error('Error getting current supplementary round:', error);
+    res.status(500).json({ error: 'Failed to get current supplementary round' });
+  }
+});
+
+// Submit answers for current supplementary round
+router.post('/sessions/:sessionId/supplementary/submit-round', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { answers } = req.body;
+
+    if (!answers || !Array.isArray(answers)) {
+      return res.status(400).json({ error: 'Valid answers array is required' });
+    }
+
+    const submittedRound = await optimizedAdaptiveLearningManager.submitSupplementaryRoundAnswers(sessionId, answers);
+
+    res.json({
+      success: true,
+      round: {
+        id: submittedRound.id,
+        round_number: submittedRound.round_number,
+        round_completed: submittedRound.round_completed,
+        performance: {
+          total_questions: submittedRound.round_answers.length,
+          correct_answers: submittedRound.round_answers.filter(a => a.is_correct).length,
+          accuracy: submittedRound.round_answers.length > 0 
+            ? (submittedRound.round_answers.filter(a => a.is_correct).length / submittedRound.round_answers.length) * 100 
+            : 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error submitting supplementary round answers:', error);
+    res.status(500).json({ error: 'Failed to submit supplementary round answers' });
+  }
+});
+
+// Generate review for specific supplementary round
+router.post('/sessions/:sessionId/supplementary/round/:roundId/review', async (req, res) => {
+  try {
+    const { sessionId, roundId } = req.params;
+
+    const reviewSession = await optimizedAdaptiveLearningManager.generateSupplementaryRoundReview(sessionId, roundId);
+
+    res.json({
+      success: true,
+      review: {
+        id: reviewSession.id,
+        difficulty: reviewSession.difficulty,
+        lesson_summary: reviewSession.lesson_summary,
+        overall_performance: reviewSession.overall_performance,
+        recommendations: reviewSession.recommendations,
+        next_difficulty_preparation: reviewSession.next_difficulty_preparation
+      }
+    });
+  } catch (error) {
+    console.error('Error generating supplementary round review:', error);
+    res.status(500).json({ error: 'Failed to generate supplementary round review' });
+  }
+});
+
+// Continue after supplementary round review
+router.post('/sessions/:sessionId/supplementary/round/:roundId/continue', async (req, res) => {
+  try {
+    const { sessionId, roundId } = req.params;
+
+    const result = await optimizedAdaptiveLearningManager.continueAfterRoundReview(sessionId);
+
+    res.json({
+      success: true,
+      hasMoreRounds: result.hasMoreRounds,
+      nextRound: result.nextRound ? {
+        id: result.nextRound.id,
+        round_number: result.nextRound.round_number,
+        supplementary_questions: result.nextRound.supplementary_questions.map(q => ({
+          id: q.id,
+          content: q.content,
+          type: q.type,
+          choices: q.choices,
+          difficulty: q.difficulty,
+          difficulty_name: q.difficulty_name,
+          lesson_id: q.lesson_id
+        }))
+      } : null,
+      completed: result.completed || false
+    });
+  } catch (error) {
+    console.error('Error continuing after round review:', error);
+    res.status(500).json({ error: 'Failed to continue after round review' });
+  }
+});
+
+// Generate final supplementary review (when all rounds are completed)
+router.post('/sessions/:sessionId/supplementary/final-review', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { difficulty } = req.body;
+
+    if (!difficulty || !['N', 'H', 'V'].includes(difficulty)) {
+      return res.status(400).json({ error: 'Valid difficulty (N, H, V) is required' });
+    }
+
+    const reviewSession = await optimizedAdaptiveLearningManager.generateDetailedSupplementaryReview(sessionId, difficulty);
+
+    res.json({
+      success: true,
+      review: {
+        id: reviewSession.id,
+        difficulty: reviewSession.difficulty,
+        lesson_summary: reviewSession.lesson_summary,
+        overall_performance: reviewSession.overall_performance,
+        recommendations: reviewSession.recommendations,
+        next_difficulty_preparation: reviewSession.next_difficulty_preparation
+      }
+    });
+  } catch (error) {
+    console.error('Error generating final supplementary review:', error);
+    res.status(500).json({ error: 'Failed to generate final supplementary review' });
   }
 });
 
