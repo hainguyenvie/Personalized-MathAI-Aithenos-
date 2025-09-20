@@ -1,4 +1,4 @@
-import { Flame, Star, Clock, Eye, Target, ClipboardCheck, PlayCircle, Trophy, LineChart, Award, Zap, Lightbulb, Sparkles } from "lucide-react";
+import { Flame, Star, Clock, Eye, Target, ClipboardCheck, PlayCircle, Trophy, LineChart, Award, Zap, Lightbulb, Sparkles, MapPin, Flag, CheckCircle, Circle, ArrowRight, Calculator, PieChart, Triangle, Ruler, BookOpen, Brain, Rocket } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { useLocation } from "wouter";
 import { AnimatedProgressBar, StaggeredList, PulseAttention, TypewriterText } from "@/components/enhanced-animations";
 import { motion } from "framer-motion";
 
+
 function HomeContent() {
   const [, navigate] = useLocation();
   const [hasOnboarding, setHasOnboarding] = useState(false);
@@ -17,6 +18,8 @@ function HomeContent() {
   const [lastAssessment, setLastAssessment] = useState<any | null>(null);
   const [knowledgeTiles, setKnowledgeTiles] = useState<any[]>([]);
   const [onboardingConfig, setOnboardingConfig] = useState<any>(null);
+  const [expandedMilestone, setExpandedMilestone] = useState<string | null>(null);
+
 
   // Use generic greeting for display
   const userDisplayName = 'bạn học';
@@ -143,6 +146,385 @@ function HomeContent() {
         </div>
       </div>
 
+      {/* Epic Math Roadmap Section */}
+      <div className="relative min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 overflow-hidden">
+        {/* Animated background stars */}
+        <div className="absolute inset-0">
+          {[...Array(50)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 bg-white rounded-full"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+              }}
+              animate={{
+                opacity: [0, 1, 0],
+                scale: [0, 1, 0],
+              }}
+              transition={{
+                duration: 2 + Math.random() * 3,
+                repeat: Infinity,
+                delay: Math.random() * 5,
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-6 py-24">
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-5xl md:text-6xl font-bold text-white mb-6 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              Hành trình chinh phục Toán học lớp 6
+            </h2>
+            <p className="text-xl text-purple-200 max-w-3xl mx-auto">
+              Khám phá thế giới số học qua từng chủ đề thú vị và đầy thách thức
+            </p>
+          </motion.div>
+
+          {/* Creative Roadmap Path */}
+          <div className="relative">
+            {/* SVG Curved Path */}
+            <svg className="absolute inset-0 w-full h-full min-h-[600px]" viewBox="0 0 1000 600">
+              <defs>
+                <linearGradient id="roadmapGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.8"/>
+                  <stop offset="25%" stopColor="#3b82f6" stopOpacity="0.8"/>
+                  <stop offset="50%" stopColor="#8b5cf6" stopOpacity="0.8"/>
+                  <stop offset="75%" stopColor="#ec4899" stopOpacity="0.8"/>
+                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.8"/>
+                </linearGradient>
+                <filter id="glow">
+                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                  <feMerge> 
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+              </defs>
+              <motion.path
+                d="M 80 500 Q 200 400 350 450 Q 500 500 650 350 Q 800 200 920 150"
+                stroke="url(#roadmapGradient)"
+                strokeWidth="6"
+                fill="none"
+                filter="url(#glow)"
+                strokeLinecap="round"
+                initial={{ pathLength: 0 }}
+                whileInView={{ pathLength: 1 }}
+                transition={{ duration: 2.5, ease: "easeInOut" }}
+              />
+            </svg>
+
+            {/* Interactive Math Topics - Clean Milestone Implementation */}
+            <div className="relative z-20 min-h-[500px]">
+              {/* Milestone 1: Số tự nhiên */}
+              <motion.div
+                initial={{ scale: 0, rotate: 180 }}
+                whileInView={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.5, type: "spring", stiffness: 150, damping: 12 }}
+                className="absolute"
+                style={{ left: '8%', top: '78%' }}
+              >
+                <div className="relative group">
+                  <motion.div
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setExpandedMilestone(expandedMilestone === 'natural' ? null : 'natural')}
+                    className="w-16 h-16 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-xl flex items-center justify-center shadow-2xl border-4 border-white/40 backdrop-blur-sm cursor-pointer transition-all duration-300 hover:shadow-3xl hover:border-white/60"
+                  >
+                    <Calculator className="text-white" size={24} />
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.8 }}
+                    className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 text-center min-w-max"
+                  >
+                    <div className="bg-white/95 backdrop-blur-md rounded-lg px-3 py-2 shadow-lg border border-white/20">
+                      <div className="font-bold text-sm text-cyan-700">Số tự nhiên</div>
+                      <div className="text-xs text-gray-600 mt-1">Bắt đầu hành trình</div>
+                    </div>
+                  </motion.div>
+
+                  {/* Expandable Content */}
+                  <motion.div
+                    animate={{ 
+                      opacity: expandedMilestone === 'natural' ? 1 : 0, 
+                      scale: expandedMilestone === 'natural' ? 1 : 0.8,
+                      y: expandedMilestone === 'natural' ? 0 : -10,
+                      pointerEvents: expandedMilestone === 'natural' ? 'auto' : 'none'
+                    }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                    className="absolute -top-40 left-1/2 transform -translate-x-1/2 z-30"
+                    style={{ minWidth: '220px' }}
+                  >
+                    <div className="bg-white/95 backdrop-blur-md rounded-xl p-4 shadow-2xl border border-white/30">
+                      <div className="font-bold text-sm text-cyan-700 mb-3 text-center border-b border-gray-200 pb-2">
+                        Số tự nhiên - Nội dung học
+                      </div>
+                      <div className="space-y-2">
+                        {["So sánh số tự nhiên", "Phép cộng, trừ", "Phép nhân, chia", "Ước và bội số", "Số nguyên tố"].map((topic, index) => (
+                          <motion.div
+                            key={index}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: expandedMilestone === 'natural' ? 1 : 0, x: expandedMilestone === 'natural' ? 0 : -10 }}
+                            transition={{ delay: expandedMilestone === 'natural' ? index * 0.1 : 0 }}
+                            className="flex items-center text-xs text-gray-700"
+                          >
+                            <div className="w-2 h-2 rounded-full bg-gradient-to-r from-cyan-400 to-cyan-600 mr-2 flex-shrink-0" />
+                            <span>{topic}</span>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Pulsing Ring */}
+                  <motion.div
+                    animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="absolute inset-0 w-16 h-16 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-xl opacity-30"
+                  />
+                </div>
+              </motion.div>
+
+              {/* Milestone 2: Phân số */}
+              <motion.div
+                initial={{ scale: 0, rotate: 180 }}
+                whileInView={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.7, type: "spring", stiffness: 150, damping: 12 }}
+                className="absolute"
+                style={{ left: '35%', top: '70%' }}
+              >
+                <div className="relative group">
+                  <motion.div
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => lastAssessment && setExpandedMilestone(expandedMilestone === 'fraction' ? null : 'fraction')}
+                    className={`w-16 h-16 rounded-xl flex items-center justify-center shadow-2xl border-4 border-white/40 backdrop-blur-sm cursor-pointer transition-all duration-300 hover:shadow-3xl ${lastAssessment ? 'bg-gradient-to-br from-blue-400 to-blue-600 hover:border-white/60' : 'bg-gray-400'}`}
+                  >
+                    <PieChart className="text-white" size={24} />
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.0 }}
+                    className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 text-center min-w-max"
+                  >
+                    <div className="bg-white/95 backdrop-blur-md rounded-lg px-3 py-2 shadow-lg border border-white/20">
+                      <div className="font-bold text-sm text-blue-700">Phân số</div>
+                      <div className="text-xs text-gray-600 mt-1">{lastAssessment ? 'Đang học' : 'Sắp tới'}</div>
+                    </div>
+                  </motion.div>
+
+                  {expandedMilestone === 'fraction' && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="absolute -top-40 left-1/2 transform -translate-x-1/2 z-30"
+                      style={{ minWidth: '220px' }}
+                    >
+                      <div className="bg-white/95 backdrop-blur-md rounded-xl p-4 shadow-2xl border border-white/30">
+                        <div className="font-bold text-sm text-blue-700 mb-3 text-center border-b border-gray-200 pb-2">
+                          Phân số - Nội dung học
+                        </div>
+                        <div className="space-y-2">
+                          {["Khái niệm phân số", "So sánh phân số", "Cộng trừ phân số", "Nhân chia phân số", "Hỗn số và phân số"].map((topic, index) => (
+                            <div key={index} className="flex items-center text-xs text-gray-700">
+                              <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 mr-2 flex-shrink-0" />
+                              <span>{topic}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {lastAssessment && (
+                    <motion.div
+                      animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
+                      transition={{ duration: 2.5, repeat: Infinity }}
+                      className="absolute inset-0 w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl opacity-30"
+                    />
+                  )}
+                </div>
+              </motion.div>
+
+              {/* Milestone 3: Hình học */}
+              <motion.div
+                initial={{ scale: 0, rotate: 180 }}
+                whileInView={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.9, type: "spring", stiffness: 150, damping: 12 }}
+                className="absolute"
+                style={{ left: '65%', top: '55%' }}
+              >
+                <div className="relative group">
+                  <motion.div
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => lastAssessment && lastAssessment.score > 30 && setExpandedMilestone(expandedMilestone === 'geometry' ? null : 'geometry')}
+                    className={`w-16 h-16 rounded-xl flex items-center justify-center shadow-2xl border-4 border-white/40 backdrop-blur-sm cursor-pointer transition-all duration-300 hover:shadow-3xl ${lastAssessment && lastAssessment.score > 30 ? 'bg-gradient-to-br from-purple-400 to-purple-600 hover:border-white/60' : 'bg-gray-400'}`}
+                  >
+                    <Triangle className="text-white" size={24} />
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.2 }}
+                    className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 text-center min-w-max"
+                  >
+                    <div className="bg-white/95 backdrop-blur-md rounded-lg px-3 py-2 shadow-lg border border-white/20">
+                      <div className="font-bold text-sm text-purple-700">Hình học phẳng</div>
+                      <div className="text-xs text-gray-600 mt-1">{lastAssessment && lastAssessment.score > 30 ? 'Đã mở khóa' : 'Chưa mở'}</div>
+                    </div>
+                  </motion.div>
+
+                  {lastAssessment && lastAssessment.score > 30 && (
+                    <motion.div
+                      animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
+                      transition={{ duration: 3, repeat: Infinity }}
+                      className="absolute inset-0 w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl opacity-30"
+                    />
+                  )}
+                </div>
+              </motion.div>
+
+              {/* Milestone 4: Thống kê */}
+              <motion.div
+                initial={{ scale: 0, rotate: 180 }}
+                whileInView={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 1.1, type: "spring", stiffness: 150, damping: 12 }}
+                className="absolute"
+                style={{ left: '80%', top: '30%' }}
+              >
+                <div className="relative group">
+                  <motion.div
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`w-16 h-16 rounded-xl flex items-center justify-center shadow-2xl border-4 border-white/40 backdrop-blur-sm cursor-pointer transition-all duration-300 hover:shadow-3xl ${lastAssessment && lastAssessment.score > 70 ? 'bg-gradient-to-br from-orange-400 to-orange-600 hover:border-white/60' : 'bg-gray-400'}`}
+                  >
+                    <LineChart className="text-white" size={24} />
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.4 }}
+                    className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 text-center min-w-max"
+                  >
+                    <div className="bg-white/95 backdrop-blur-md rounded-lg px-3 py-2 shadow-lg border border-white/20">
+                      <div className="font-bold text-sm text-orange-700">Thống kê</div>
+                      <div className="text-xs text-gray-600 mt-1">{lastAssessment && lastAssessment.score > 70 ? 'Gần hoàn thành' : 'Thử thách cuối'}</div>
+                    </div>
+                  </motion.div>
+                </div>
+              </motion.div>
+
+              {/* Final Milestone: Bậc thầy */}
+              <motion.div
+                initial={{ scale: 0, rotate: 180 }}
+                whileInView={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 1.3, type: "spring", stiffness: 150, damping: 12 }}
+                className="absolute"
+                style={{ left: '92%', top: '22%' }}
+              >
+                <div className="relative group">
+                  <motion.div
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`w-20 h-20 rounded-full flex items-center justify-center shadow-2xl border-4 border-white/40 backdrop-blur-sm cursor-pointer transition-all duration-300 hover:shadow-3xl ${lastAssessment && lastAssessment.score > 90 ? 'bg-gradient-to-br from-yellow-400 via-orange-400 to-red-500 hover:border-white/60' : 'bg-gray-400'}`}
+                  >
+                    <Rocket className="text-white" size={28} />
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.6 }}
+                    className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 text-center min-w-max"
+                  >
+                    <div className="bg-white/95 backdrop-blur-md rounded-lg px-3 py-2 shadow-lg border border-white/20">
+                      <div className="font-bold text-sm text-yellow-700">Bậc thầy Toán</div>
+                      <div className="text-xs text-gray-600 mt-1">{lastAssessment && lastAssessment.score > 90 ? 'Xuất sắc!' : 'Mục tiêu tối cao'}</div>
+                    </div>
+                  </motion.div>
+
+                  {lastAssessment && lastAssessment.score > 90 && (
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1], opacity: [0.8, 0.3, 0.8] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                      className="absolute inset-0 w-20 h-20 bg-gradient-to-br from-yellow-400 via-orange-400 to-red-500 rounded-full opacity-40"
+                    />
+                  )}
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Floating Knowledge Icons */}
+            {[BookOpen, Brain, Star, Lightbulb].map((Icon, i) => (
+              <motion.div
+                key={i}
+                className="absolute text-white/15 pointer-events-none"
+                style={{
+                  left: `${15 + i * 20}%`,
+                  top: `${25 + i * 10}%`,
+                }}
+                animate={{
+                  y: [-15, 15, -15],
+                  rotate: [0, 180, 360],
+                  opacity: [0.1, 0.3, 0.1],
+                }}
+                transition={{
+                  duration: 6 + i,
+                  repeat: Infinity,
+                  delay: i * 1.5,
+                }}
+              >
+                <Icon size={20 + i * 4} />
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Progress Summary */}
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ delay: 2.5 }}
+            className="text-center mt-16"
+          >
+            <div className="inline-flex items-center space-x-4 bg-white/10 backdrop-blur-md rounded-2xl px-8 py-4 border border-white/20">
+              <Sparkles className="text-cyan-400" size={24} />
+              <span className="text-xl font-semibold text-white">
+                {lastAssessment 
+                  ? `Bạn đã chinh phục ${Math.min(Math.floor(lastAssessment.score / 18), 5)}/5 chủ đề toán học`
+                  : 'Sẵn sàng bắt đầu cuộc phiêu lưu toán học?'
+                }
+              </span>
+              <ArrowRight className="text-cyan-400" size={24} />
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Scroll indicator */}
+        <motion.div
+          animate={{ y: [0, 10, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white/60"
+        >
+          <div className="text-sm text-center">
+            <div className="text-purple-200">Cuộn xuống để khám phá thêm</div>
+            <ArrowRight className="mx-auto mt-2 rotate-90" size={20} />
+          </div>
+        </motion.div>
+      </div>
+
       {/* Learning Progress Section */}
       <div className="max-w-6xl mx-auto px-6 py-12">
         <div className="grid lg:grid-cols-3 gap-8">
@@ -150,6 +532,7 @@ function HomeContent() {
           <div className="lg:col-span-2">
             <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
               <CardContent className="p-8">
+
                 <div className="flex items-center justify-between mb-8">
                   <h2 className="text-3xl font-bold text-blue-900">Lộ trình học tập của bạn</h2>
                   <span className="bg-teal-100 text-teal-700 px-4 py-2 rounded-full text-sm font-semibold">
@@ -395,20 +778,22 @@ function HomeContent() {
               <CardContent className="p-6">
                 <h3 className="text-xl font-bold text-blue-900 mb-6">Thành tích mới nhất</h3>
                 <div className="space-y-4">
-                  {mockAchievements.map((achievement) => (
-                    <div key={achievement.id} className="flex items-center space-x-4 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md ${
-                        achievement.color === 'gold' ? 'bg-yellow-500' : 'bg-green-500'
-                      }`}>
-                        {achievement.icon === 'fire' && <Flame className="text-white" size={18} />}
-                        {achievement.icon === 'star' && <Star className="text-white" size={18} />}
+                  {mockAchievements.map((achievement) => {
+                    const IconComponent = achievement.icon;
+                    return (
+                      <div key={achievement.id} className="flex items-center space-x-4 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md ${
+                          achievement.rarity === 'epic' ? 'bg-yellow-500' : 'bg-green-500'
+                        }`}>
+                          <IconComponent className="text-white" size={18} />
+                        </div>
+                        <div>
+                          <div className="font-bold text-blue-900">{achievement.name}</div>
+                          <div className="text-sm text-gray-600">{achievement.description}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-bold text-blue-900">{achievement.name}</div>
-                        <div className="text-sm text-gray-600">{achievement.description}</div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

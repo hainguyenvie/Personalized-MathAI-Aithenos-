@@ -37,7 +37,7 @@ export default function LearningRoadmap({ userId = "sample-user-1" }: RoadmapPro
       // Mock comprehensive data for demo
       const mockProfile = {
         id: userId,
-        name: "An Nguyễn",
+        name: "Hoàng Anh",
         level: 4,
         totalXP: 2850,
         nextLevelXP: 3500,
@@ -475,36 +475,52 @@ export default function LearningRoadmap({ userId = "sample-user-1" }: RoadmapPro
                               )}
                             </div>
                             
-                            <Button
-                              disabled={isLocked}
-                              className={`${
-                                isCompleted ? 'bg-green-600 hover:bg-green-700' :
-                                isInProgress ? 'bg-blue-600 hover:bg-blue-700' :
-                                'bg-gray-400'
-                              } text-white transition-colors`}
-                              onClick={() => {
-                                if (!isLocked) {
-                                  window.location.href = '/practice';
-                                }
-                              }}
-                            >
-                              {isCompleted ? (
-                                <>
-                                  <Eye size={16} className="mr-2" />
-                                  Ôn tập
-                                </>
-                              ) : isInProgress ? (
-                                <>
-                                  <PlayCircle size={16} className="mr-2" />
-                                  Tiếp tục
-                                </>
-                              ) : (
-                                <>
-                                  <Lock size={16} className="mr-2" />
-                                  Bị khóa
-                                </>
+                            <div className="flex gap-2">
+                              <Button
+                                disabled={isLocked}
+                                className={`${
+                                  isCompleted ? 'bg-green-600 hover:bg-green-700' :
+                                  isInProgress ? 'bg-blue-600 hover:bg-blue-700' :
+                                  'bg-gray-400'
+                                } text-white transition-colors`}
+                                onClick={() => {
+                                  if (!isLocked) {
+                                    window.location.href = '/practice';
+                                  }
+                                }}
+                                data-testid={`topic-action-button-${topic.id}`}
+                              >
+                                {isCompleted ? (
+                                  <>
+                                    <Eye size={16} className="mr-2" />
+                                    Ôn tập
+                                  </>
+                                ) : isInProgress ? (
+                                  <>
+                                    <PlayCircle size={16} className="mr-2" />
+                                    Tiếp tục
+                                  </>
+                                ) : (
+                                  <>
+                                    <Lock size={16} className="mr-2" />
+                                    Bị khóa
+                                  </>
+                                )}
+                              </Button>
+                              
+                              {isCompleted && (
+                                <Button
+                                  className="bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                                  onClick={() => {
+                                    window.location.href = '/learning';
+                                  }}
+                                  data-testid={`topic-learn-button-${topic.id}`}
+                                >
+                                  <BookOpen size={16} className="mr-2" />
+                                  Học
+                                </Button>
                               )}
-                            </Button>
+                            </div>
                           </div>
                         </div>
                       </div>
